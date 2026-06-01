@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core Colors */
+    --color-background: #FFFFFF; /* clean white background */
+    --color-foreground: #0F1419; /* even darker gray for maximum contrast */
+    --color-border: #E2E8F0; /* clean light gray border */
+    --color-input: #FFFFFF; /* clean white input */
+    --color-ring: #A3D9A5; /* much darker mint green ring */
+    
+    /* Card Colors */
+    --color-card: #FFFFFF; /* clean white card */
+    --color-card-foreground: #0F1419; /* even darker gray for maximum contrast */
+    
+    /* Popover Colors */
+    --color-popover: #FFFFFF; /* clean white popover */
+    --color-popover-foreground: #0F1419; /* even darker gray for maximum contrast */
+    
+    /* Muted Colors */
+    --color-muted: #F1F5F9; /* light gray muted */
+    --color-muted-foreground: #1A202C; /* significantly darker for better visibility */
+    
+    /* Primary Colors */
+    --color-primary: #AC2334; /* much darker mint green */
+    --color-primary-foreground: #ffffff; /* even darker gray for maximum contrast */
+    
+    /* Secondary Colors */
+    --color-secondary: #D1A3E8; /* much darker light purple */
+    --color-secondary-foreground: #0F1419; /* even darker gray for maximum contrast */
+    
+    /* Destructive Colors */
+    --color-destructive: #E8A8A0; /* much darker soft pink */
+    --color-destructive-foreground: #4A1010; /* darker red for better contrast */
+    
+    /* Accent Colors */
+    --color-accent: #fee0df; /* much darker pale yellow */
+    --color-accent-foreground: #0F1419; /* even darker gray for maximum contrast */
+    
+    /* Success Colors */
+    --color-success: #A3D9A5; /* much darker mint green */
+    --color-success-foreground: #0A251A; /* darker emerald for better contrast */
+    
+    /* Warning Colors */
+    --color-warning: #D9DB7A; /* much darker pale yellow */
+    --color-warning-foreground: #4A1A08; /* darker amber for better contrast */
+    
+    /* Error Colors */
+    --color-error: #E8A8A0; /* much darker soft pink */
+    --color-error-foreground: #4A1010; /* darker red for better contrast */
+  }
+
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .shadow-elevation-1 {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .shadow-elevation-2 {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .transition-smooth {
+    transition: all 200ms ease-out;
+  }
+  
+  .transition-spring {
+    transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}

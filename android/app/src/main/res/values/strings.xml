@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">crmpro</string>
+    <string name="title_activity_main">crmpro</string>
+    <string name="package_name">crm.aajneeti.social</string>
+    <string name="custom_url_scheme">crm.aajneeti.social</string>
+</resources>
