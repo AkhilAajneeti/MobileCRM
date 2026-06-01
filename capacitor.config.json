@@ -1,5 +1,10 @@
 {
   "appId": "crm.aajneeti.social",
-  "appName": "crmpro",
-  "webDir": "build"
+  "appName": "AajneetiCRM",
+  "webDir": "build",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }
