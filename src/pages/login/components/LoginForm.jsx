@@ -66,8 +66,13 @@ const LoginForm = () => {
     setErrors({});
 
     try {
+      // Trim the username — mobile keyboards often append a trailing space
+      // via autocomplete/autocorrect, which the server rejects.
+      const username = formData.username.trim();
+      const password = formData.password;
+
       // 🔐 Step 1: create login token (username + password)
-      const loginToken = btoa(`${formData.username}:${formData.password}`);
+      const loginToken = btoa(`${username}:${password}`);
 
       const res = await fetch("https://gateway.aajneetiadvertising.com/auth", {
         method: "POST",
@@ -76,8 +81,8 @@ const LoginForm = () => {
           "create-token": loginToken,
         },
         body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
+          username,
+          password,
         }),
       });
 
@@ -170,6 +175,10 @@ const LoginForm = () => {
         error={errors.username}
         disabled={isLoading}
         required
+        autoCapitalize="none"
+        autoCorrect="off"
+        autoComplete="username"
+        spellCheck={false}
       />
 
       <div className="relative">
@@ -182,6 +191,10 @@ const LoginForm = () => {
           error={errors.password}
           disabled={isLoading}
           required
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="current-password"
+          spellCheck={false}
         />
 
         <button
