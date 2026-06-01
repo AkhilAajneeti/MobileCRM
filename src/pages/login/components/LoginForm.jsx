@@ -79,7 +79,14 @@ const LoginForm = () => {
         headers: {
           "Content-Type": "application/json",
           "create-token": loginToken,
+          // The server authorizes requests by their referrer. In a browser this
+          // is sent automatically, but inside the Capacitor app the origin is
+          // `https://localhost`, so we set it explicitly. Sent as a header so it
+          // survives the native CapacitorHttp request path.
+          "Referer": "https://crm.aajneeti.social/",
         },
+        // `referrer` is the fetch-API option a browser honours on the web build.
+        referrer: "https://crm.aajneeti.social/",
         body: JSON.stringify({
           username,
           password,
