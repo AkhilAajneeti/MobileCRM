@@ -93,11 +93,25 @@ const LoginForm = () => {
         }),
       });
 
-      const data = await res.json();
-      console.log("LOGIN RESPONSE:", data);
+      // --- TEMP DIAGNOSTICS: read the raw response so we can see exactly what
+      // the server returns on the phone. Remove once login is confirmed. ---
+      const rawBody = await res.text();
+      console.log("LOGIN STATUS:", res.status, "RAW:", rawBody);
+
+      let data;
+      try {
+        data = JSON.parse(rawBody);
+      } catch {
+        // Server didn't return JSON — show the status + raw body on screen.
+        throw new Error(
+          `HTTP ${res.status} — ${rawBody?.slice(0, 300) || "empty response"}`,
+        );
+      }
 
       if (!res.ok) {
-        throw new Error(data?.message || "Invalid credentials");
+        throw new Error(
+          `HTTP ${res.status} — ${data?.message || rawBody?.slice(0, 300) || "no message"}`,
+        );
       }
       //
 
