@@ -30,6 +30,7 @@
     "@capacitor/android": "^8.3.4",
     "@capacitor/cli": "^8.3.4",
     "@capacitor/core": "^8.3.4",
+    "@capacitor/local-notifications": "^8.2.0",
     "@dhiwise/component-tagger": "^1.0.10",
     "@hello-pangea/dnd": "^18.0.1",
     "@radix-ui/react-slot": "^1.2.3",

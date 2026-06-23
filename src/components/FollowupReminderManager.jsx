@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { fetchTodayFollowups } from "services/reminder.service";
+import { showNativeNotification } from "services/nativeNotifications";
 
 /**
  * FollowupReminderManager
@@ -195,33 +196,22 @@ const FollowupReminderManager = () => {
     const groupId = `group-${lead.time.getTime()}`;
     const toastId = isGroup ? `reminder-${groupId}` : `reminder-${lead.id}`;
 
-    // OS-level notification when the tab isn't focused.
-    if (
-      "Notification" in window &&
-      Notification.permission === "granted" &&
-      document.hidden
-    ) {
-      try {
-        const n = new Notification(
-          isGroup ? `${items.length} follow-ups due now` : "Follow-up reminder",
-          {
-            body: isGroup
-              ? namePreview
-              : `${lead.name} • ${formatTime(lead.time)}${
-                  lead.project ? ` • ${lead.project}` : ""
-                }`,
-            tag: isGroup ? groupId : lead.id,
-            requireInteraction: true, // stay on screen until the rep acts
-          },
-        );
-        n.onclick = () => {
-          window.focus();
-          navigate("/leads", { state: { leadId: lead.id } });
-          n.close();
-        };
-      } catch {
-        /* ignore */
-      }
+    // Phone-tray / OS-level notification when the app isn't in the foreground.
+    // Uses Capacitor LocalNotifications on device (the Web Notification API
+    // does nothing inside an Android WebView), with a browser fallback.
+    if (document.hidden) {
+      showNativeNotification({
+        key: isGroup ? groupId : lead.id,
+        title: isGroup
+          ? `${items.length} follow-ups due now`
+          : "Follow-up reminder",
+        body: isGroup
+          ? namePreview
+          : `${lead.name} • ${formatTime(lead.time)}${
+              lead.project ? ` • ${lead.project}` : ""
+            }`,
+        extra: { leadId: lead.id },
+      });
     }
 
     // In-app popup (persistent until acted on).
