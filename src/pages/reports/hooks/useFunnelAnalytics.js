@@ -19,13 +19,19 @@ const STALE = 1000 * 60 * 5;
 const GC = 1000 * 60 * 30;
 
 // Funnel stages in pipeline order (top → bottom).
+/**
+ * One fixed hue per stage, keyed on the stage and never on its rank —
+ * filtering to fewer stages must never repaint the survivors.
+ * The bar fill uses the `to` value.
+ */
 export const FUNNEL_STAGES = [
   { key: "New", label: "New", from: "#60A5FA", to: "#2563EB" },
-  { key: "Follow up", label: "Follow up", from: "#A78BFA", to: "#7C3AED" },
-  { key: "Interested", label: "Interested", from: "#34D399", to: "#10B981" },
-  { key: "Site Visit Scheduled", label: "Site Visit Scheduled", from: "#FBBF24", to: "#F59E0B" },
-  { key: "Site Visit Done", label: "Site Visit Done", from: "#FB923C", to: "#EA580C" },
-  { key: "Purchased", label: "Purchased", from: "#F472B6", to: "#DB2777" },
+  { key: "Follow up", label: "Follow up", from: "#FB923C", to: "#EA580C" },
+  { key: "Interested", label: "Interested", from: "#2DD4BF", to: "#0D9488" },
+  { key: "Site Visit Scheduled", label: "Site Visit Scheduled", from: "#A78BFA", to: "#7C3AED" },
+  { key: "Invitation Sent", label: "Invitation Sent", from: "#A3E635", to: "#65A30D" },
+  { key: "Site Visit Done", label: "Site Visit Done", from: "#F472B6", to: "#DB2777" },
+  { key: "Purchased", label: "Purchased", from: "#F59E0B", to: "#B45309" },
 ];
 
 const FUNNEL_SET = new Set(FUNNEL_STAGES.map((s) => s.key.toLowerCase()));

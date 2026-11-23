@@ -4,19 +4,24 @@ import Header from "../../components/ui/Header";
 import Sidebar from "../../components/ui/Sidebar";
 import KPICard from "./components/KPICard";
 import PipelineChart from "./components/PipelineChart";
-import Icon from "../../components/AppIcon";
 import RightRail from "./components/RightRail";
 import DashboardSummaryAlert from "./components/DashboardSummaryAlert";
+import ActivityFunnel from "./components/ActivityFunnel";
+import InsightSheet from "./components/InsightSheet";
+import MetricsCard from "./components/MetricsCard";
+import QualifiedBreakdown, {
+  QUALIFIED_STAGES,
+} from "./components/QualifiedBreakdown";
 import { fetchLeads } from "services/leads.service";
 import MultiLineChart from "./components/MultiLineChart";
 import { fetchMeeting } from "services/meeting.service";
-import Button from "../../components/ui/Button";
 import { useLeadsCount } from "hooks/useLeads";
 import { useQuery } from "@tanstack/react-query";
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeInsight, setActiveInsight] = useState(null);
   const [insightData, setInsightData] = useState([]);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
 
   // update by filter
 
@@ -85,6 +90,56 @@ const Dashboard = () => {
     { type: "lastMonth", attribute: "createdAt" },
     { type: "equals", attribute: "status", value: "Interested" }
   ]);
+
+  /* ----------------------------------------------------------------
+   * Qualification row (spec 4) — lifetime counts, no date filter, so
+   * every percentage reads against the whole book of leads.
+   * ---------------------------------------------------------------- */
+
+  // The statuses that make up "Qualified Now". QDTD is deliberately absent:
+  // it has its own card and is excluded from the breakdown.
+  const QUALIFIED_STATUSES = QUALIFIED_STAGES.map((stage) => stage.status);
+
+  // "Showed real interest once, now written off."
+  // Junk is excluded on purpose — Fake Lead, Invalid Number, Irrelevant Lead,
+  // Duplicate and Broker were never real prospects, so counting them here
+  // would overstate how much genuine interest was lost.
+  const LOST_STATUSES = [
+    "Not Interested",
+    "Low Budget",
+    "Low Interest",
+    "Other Location",
+  ];
+
+  const allLeadsQuery = useLeadsCount([]);
+  const qualifiedNowQuery = useLeadsCount([
+    { type: "in", attribute: "status", value: QUALIFIED_STATUSES },
+  ]);
+  const qualifiedOnDelayQuery = useLeadsCount([
+    { type: "in", attribute: "status", value: ["QDTD"] },
+  ]);
+  const qualifiedLostQuery = useLeadsCount([
+    { type: "in", attribute: "status", value: LOST_STATUSES },
+  ]);
+
+  // One count per qualified status, for the breakdown drawer. Fixed order and
+  // fixed length, so the hook count never changes between renders — but they
+  // only hit the network once the drawer is actually opened.
+  const followUpCount = useLeadsCount([{ type: "in", attribute: "status", value: ["Follow up"] }], isBreakdownOpen);
+  const interestedCount = useLeadsCount([{ type: "in", attribute: "status", value: ["Interested"] }], isBreakdownOpen);
+  const visitScheduledCount = useLeadsCount([{ type: "in", attribute: "status", value: ["Site Visit Scheduled"] }], isBreakdownOpen);
+  const invitationSentCount = useLeadsCount([{ type: "in", attribute: "status", value: ["Invitation Sent"] }], isBreakdownOpen);
+  const visitDoneCount = useLeadsCount([{ type: "in", attribute: "status", value: ["Site Visit Done"] }], isBreakdownOpen);
+  const purchasedCount = useLeadsCount([{ type: "in", attribute: "status", value: ["Purchased"] }], isBreakdownOpen);
+
+  const breakdownQueries = [
+    followUpCount,
+    interestedCount,
+    visitScheduledCount,
+    invitationSentCount,
+    visitDoneCount,
+    purchasedCount,
+  ];
 
   // ✅ 2. EXTRACT DATA
   const thisMonth = thisMonthQuery.data || 0;
@@ -239,6 +294,122 @@ const Dashboard = () => {
     return () => document.removeEventListener("keydown", handleEscape);
   }, []);
 
+  /**
+   * Funnel -> insight sheet. Each stage filters the records behind its own
+   * count; the filtering rules are unchanged from the previous tiles.
+   */
+  const openInsight = (key) => {
+    if (key === "meetings") {
+      const filtered = meetingsList
+        .filter((m) => {
+          const createdToday = m.createdAt && isToday(m.createdAt);
+          const scheduledToday = m.dateStart && isToday(m.dateStart);
+          return createdToday || scheduledToday;
+        })
+        .map((m) => {
+          const createdToday = m.createdAt && isToday(m.createdAt);
+          const scheduledToday = m.dateStart && isToday(m.dateStart);
+          return {
+            ...m,
+            insightType:
+              createdToday && scheduledToday
+                ? "Created & Scheduled Today"
+                : createdToday
+                  ? "Created Today"
+                  : "Scheduled Today",
+          };
+        });
+      setInsightData(filtered);
+    } else {
+      const statusByKey = {
+        purchased: "Purchased",
+        visits: "Site Visit Done",
+        siteVisitsScheduled: "Site Visit Scheduled",
+      };
+      const status = statusByKey[key];
+      setInsightData(
+        leads.filter((l) => l.status === status && isToday(l.modifiedAt)),
+      );
+    }
+
+    setActiveInsight(key);
+  };
+
+  // Clock-derived greeting (spec 1.3). The first name is title-cased from the
+  // stored login, first word only — never show the raw username, so
+  // `akhil_aajneeti_admin` reads as "Akhil".
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  })();
+
+  const firstName = (() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("login_object") || "null");
+      const raw = String(stored?.username || "").split(/[._\s-]+/)[0];
+      if (!raw) return "";
+      return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+
+  const allLeadsTotal = allLeadsQuery.data || 0;
+  const shareOf = (value) =>
+    allLeadsTotal ? Math.round((value / allLeadsTotal) * 100) : 0;
+
+  const qualificationLoading =
+    allLeadsQuery.isLoading ||
+    qualifiedNowQuery.isLoading ||
+    qualifiedOnDelayQuery.isLoading ||
+    qualifiedLostQuery.isLoading;
+
+  const qualificationCards = [
+    {
+      title: "All Leads",
+      value: allLeadsTotal,
+      icon: "Users",
+      from: "#3B82F6",
+      to: "#2563EB",
+      description: "Everything in this view — the base for every % below",
+    },
+    {
+      title: "Qualified Now",
+      value: qualifiedNowQuery.data || 0,
+      share: shareOf(qualifiedNowQuery.data || 0),
+      icon: "BadgeCheck",
+      from: "#14B8A6",
+      to: "#0D9488",
+      description: "Interested today — tap to see the split",
+      expandable: true,
+    },
+    {
+      title: "Qualified On Delay",
+      value: qualifiedOnDelayQuery.data || 0,
+      share: shareOf(qualifiedOnDelayQuery.data || 0),
+      icon: "Hourglass",
+      from: "#6366F1",
+      to: "#4338CA",
+      description: "Status is QDTD — qualified, but on delay",
+    },
+    {
+      title: "Qualified, Then Lost",
+      value: qualifiedLostQuery.data || 0,
+      share: shareOf(qualifiedLostQuery.data || 0),
+      icon: "TrendingDown",
+      from: "#78716C",
+      to: "#57534E",
+      description: "Showed real interest once, now written off",
+    },
+  ];
+
+  const breakdownRows = QUALIFIED_STAGES.map((stage, index) => ({
+    ...stage,
+    value: breakdownQueries[index].data || 0,
+  }));
+
   const kpiData = [
     {
       title: "This Month Leads",
@@ -246,9 +417,9 @@ const Dashboard = () => {
       change: `${monthGrowth}%`,
       changeType: monthGrowth >= 0 ? "positive" : "negative",
       icon: "Users",
-      iconBg: "bg-blue-100",
-      iconColor: "#3B82F6",
-      comparisonLabel: "compared to last month",
+      accent: "#3B82F6",
+      featured: true,
+      comparisonLabel: "last month",
     },
     {
       title: "Today Leads",
@@ -256,19 +427,20 @@ const Dashboard = () => {
       change: todayDiff >= 0 ? `+${todayDiff}` : `${todayDiff}`,
       changeType: todayDiff >= 0 ? "positive" : "negative",
       icon: "Calendar",
-      iconBg: "bg-green-100",
-      iconColor: "#10B981",
-      comparisonLabel: "since yesterday",
+      accent: "#10B981",
+      comparisonLabel: "yesterday",
     },
     {
-      title: "Interested Leads (This Month)",
+      // Just "Interested" — the parenthetical forced a three-line wrap on the
+      // compact card and knocked the number off the row baseline.
+      // "vs last month" already implies the period.
+      title: "Interested",
       value: interested,
       change: `${interestedGrowth}%`,
       changeType: interestedGrowth >= 0 ? "positive" : "negative",
       icon: "Star",
-      iconBg: "bg-yellow-100",
-      iconColor: "#F59E0B",
-      comparisonLabel: "compared to last month",
+      accent: "#F59E0B",
+      comparisonLabel: "last month",
     },
   ];
 
@@ -276,13 +448,15 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <Header onMenuToggle={handleMenuToggle} isSidebarOpen={isSidebarOpen} />
       <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
-      <main className="lg:ml-64 pt-16">
-        <div className="m-6">
+      <main className="top-bar-offset lg:ml-64">
+        <div className="m-4 sm:m-6">
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
             Dashboard
           </h1>
           <p className="text-muted-foreground">
-            Welcome back! Here's what's happening with your sales today.
+            {greeting}
+            {firstName ? `, ${firstName}` : ""}! Here's what's happening with
+            your sales today.
           </p>
         </div>
 
@@ -294,13 +468,16 @@ const Dashboard = () => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5 m-3 sm:m-5">
+        {/* The hero spans both columns on a phone so the third card is never
+            orphaned alone on a row; from md all three are equal columns. */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 m-3 sm:m-5">
           {kpiData?.map((kpi, index) => (
             <motion.div
               key={index}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
+              className={`h-full ${index === 0 ? "col-span-2 md:col-span-1" : "col-span-1"}`}
             >
               <KPICard {...kpi} isLoading={
                 thisMonthQuery.isLoading ||
@@ -310,6 +487,45 @@ const Dashboard = () => {
             </motion.div>
           ))}
         </div>
+        {/* Qualification row (spec 4) — what happened to all our leads,
+            below the KPI row which answers how are we doing this month.
+            Two columns on a phone so the four tile 2x2. */}
+        {allLeadsTotal > 0 && (
+          <div className="m-3 sm:m-5">
+            <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
+              {qualificationCards.map((card, index) => (
+                <motion.div
+                  key={card.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className="h-full"
+                >
+                  <MetricsCard
+                    {...card}
+                    isLoading={qualificationLoading}
+                    expandable={card.expandable}
+                    isOpen={card.expandable && isBreakdownOpen}
+                    onToggle={
+                      card.expandable
+                        ? () => setIsBreakdownOpen((open) => !open)
+                        : undefined
+                    }
+                  />
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="mt-3 sm:mt-5">
+              <QualifiedBreakdown
+                isOpen={isBreakdownOpen}
+                rows={breakdownRows}
+                isLoading={breakdownQueries.some((q) => q.isLoading)}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
           {/* Main Content */}
           <div className="flex-1 p-4 lg:p-0 xl:pr-0">
@@ -329,328 +545,45 @@ const Dashboard = () => {
               </div>
 
 
-              {/* Recent Activities */}
+              {/* Today's Activity funnel (spec 8) */}
               <div className="sm:m-5 py-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {/* Meetings Held */}
-                  <div
-                    onClick={() => {
-                      const filtered = meetingsList
-                        .filter((m) => {
-                          const createdToday =
-                            m.createdAt &&
-                            isToday(m.createdAt);
-
-                          const scheduledToday =
-                            m.dateStart &&
-                            isToday(m.dateStart);
-
-                          return createdToday || scheduledToday;
-                        })
-                        .map((m) => {
-                          const createdToday =
-                            m.createdAt &&
-                            isToday(m.createdAt);
-
-                          const scheduledToday =
-                            m.dateStart &&
-                            isToday(m.dateStart);
-
-                          return {
-                            ...m,
-                            insightType:
-                              createdToday && scheduledToday
-                                ? "Created & Scheduled Today"
-                                : createdToday
-                                  ? "Created Today"
-                                  : "Scheduled Today",
-                          };
-                        });
-
-                      setInsightData(filtered);
-                      setActiveInsight("meetings");
-                    }}
-                    className="cursor-pointer bg-blue-50 border border-blue-100 rounded-2xl p-6 
-  hover:shadow-lg transition-all duration-300 
-  flex items-center justify-between min-h-[110px]"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium tracking-wide text-blue-700 uppercase">
-                        Meetings Scheduling
-                      </p>
-                      <p className="text-3xl font-bold text-blue-600">
-                        {meetings}
-                      </p>
-                    </div>
-
-                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                      <Icon
-                        name="Calendar"
-                        size={22}
-                        className="text-blue-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Purchased — closed-won leads moved to "Purchased" today */}
-                  <div
-                    onClick={() => {
-                      const filtered = leads.filter(
-                        (l) =>
-                          l.status === "Purchased" && isToday(l.modifiedAt),
-                      );
-
-                      setInsightData(filtered);
-                      setActiveInsight("purchased");
-                    }}
-                    className="cursor-pointer bg-emerald-50 border border-emerald-100 rounded-2xl p-6
-hover:shadow-lg transition-all duration-300 flex items-center justify-between min-h-[110px]"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium tracking-wide text-emerald-700 uppercase">
-                        Purchased
-                      </p>
-                      <p className="text-3xl font-bold text-emerald-600">
-                        {purchased}
-                      </p>
-                    </div>
-
-                    <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                      <Icon
-                        name="BadgeCheck"
-                        size={22}
-                        className="text-emerald-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Site Visits */}
-                  <div
-                    onClick={() => {
-                      const filtered = leads.filter(
-                        (l) =>
-                          l.status === "Site Visit Done" &&
-                          isToday(l.modifiedAt),
-                      );
-
-                      setInsightData(filtered);
-                      setActiveInsight("visits");
-                    }}
-                    className="cursor-pointer bg-amber-50 border border-amber-100 rounded-2xl p-6 
-hover:shadow-lg transition-all duration-300 flex items-center justify-between min-h-[110px]"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium tracking-wide text-amber-700 uppercase">
-                        Site Visits
-                      </p>
-                      <p className="text-3xl font-bold text-amber-600">
-                        {siteVisits}
-                      </p>
-                    </div>
-
-                    <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                      <Icon
-                        name="MapPin"
-                        size={22}
-                        className="text-amber-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Site Visit Scheduled — new bookings made today */}
-                  <div
-                    onClick={() => {
-                      const filtered = leads.filter(
-                        (l) =>
-                          l.status === "Site Visit Scheduled" &&
-                          isToday(l.modifiedAt),
-                      );
-
-                      setInsightData(filtered);
-                      setActiveInsight("siteVisitsScheduled");
-                    }}
-                    className="cursor-pointer bg-sky-50 border border-sky-100 rounded-2xl p-6
-hover:shadow-lg transition-all duration-300 flex items-center justify-between min-h-[110px]"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium tracking-wide text-sky-700 uppercase">
-                        Site Visit Scheduled
-                      </p>
-                      <p className="text-3xl font-bold text-sky-600">
-                        {siteVisitsScheduled}
-                      </p>
-                    </div>
-
-                    <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center">
-                      <Icon
-                        name="CalendarCheck"
-                        size={22}
-                        className="text-sky-600"
-                      />
-                    </div>
-                  </div>
-                </div>
+                <ActivityFunnel
+                  counts={{
+                    meetings,
+                    siteVisitsScheduled,
+                    visits: siteVisits,
+                    purchased,
+                  }}
+                  activeKey={activeInsight}
+                  onSelect={openInsight}
+                />
                 {/* <RecentActivities activities={activities} /> */}
               </div>
-              {activeInsight && (
-                <div className="m-5 bg-card border border-border rounded-lg overfl ow-hidden">
-                  {/* Header */}
-                  <div className="flex justify-between items-center px-6 py-4 border-b border-border bg-muted/40">
-                    <h3 className="text-base font-semibold text-foreground">
-                      {activeInsight === "meetings" && "Today's Meetings"}
-                      {activeInsight === "purchased" && "Purchased Today"}
-                      {activeInsight === "visits" && "Site Visits"}
-                      {activeInsight === "siteVisitsScheduled" &&
-                        "Site Visits Scheduled Today"}
-                    </h3>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveInsight(null)}
-                    >
-                      Close
-                    </Button>
-                  </div>
-
-                  {insightData.length === 0 ? (
-                    <div className="p-6 text-center text-muted-foreground text-sm">
-                      No records found.
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-muted/50 border-b border-border">
-                          <tr>
-                            <th className="text-left px-6 py-3 text-sm font-medium">
-                              Name
-                            </th>
-
-                            {activeInsight === "meetings" ? (
-                              <>
-                                <th className="text-left px-6 py-3 text-sm font-medium">
-                                  Join URL
-                                </th>
-                                <th className="text-left px-6 py-3 text-sm font-medium">
-                                  Start
-                                </th>
-                                <th className="text-left px-6 py-3 text-sm font-medium">
-                                  End
-                                </th>
-                                <th className="text-left px-6 py-3 text-sm font-medium">
-                                  Type
-                                </th>
-                              </>
-                            ) : (
-                              <>
-                                <th className="text-left px-6 py-3 text-sm font-medium">
-                                  Assigned User
-                                </th>
-                                <th className="text-left px-6 py-3 text-sm font-medium">
-                                  Created By
-                                </th>
-                                <th className="text-left px-6 py-3 text-sm font-medium">
-                                  Created
-                                </th>
-                              </>
-                            )}
-                          </tr>
-                        </thead>
-
-                        <tbody className="divide-y divide-border">
-                          {insightData.map((item) => (
-                            <tr
-                              key={item.id}
-                              className="hover:bg-muted/30 transition"
-                            >
-                              {/* Name */}
-                              <td className="px-6 py-4">
-                                <div className="font-medium text-foreground">
-                                  {item.name}
-                                </div>
-                              </td>
-
-                              {/* Dynamic Column */}
-                              {activeInsight === "meetings" ? (
-                                <>
-                                  <td className="px-6 py-4">
-                                    {item.joinUrl ? (
-                                      <div className="flex items-center gap-2 max-w-xs">
-                                        <a
-                                          href={item.joinUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-primary text-sm truncate hover:underline"
-                                        >
-                                          {item.joinUrl}
-                                        </a>
-
-                                        <button
-                                          onClick={() => {
-                                            navigator.clipboard.writeText(
-                                              item.joinUrl,
-                                            );
-                                          }}
-                                          className="p-1 rounded hover:bg-muted transition"
-                                        >
-                                          <Icon name="Copy" size={16} />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      "—"
-                                    )}
-                                  </td>
-
-                                  <td className="px-6 py-4 text-sm">
-                                    {formatTime(item.dateStart)}
-                                  </td>
-
-                                  <td className="px-6 py-4 text-sm">
-                                    {formatTime(item.dateEnd)}
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${item.insightType === "Created Today"
-                                        ? "bg-blue-100 text-blue-700"
-                                        : "bg-green-100 text-green-700"
-                                        }`}
-                                    >
-                                      {item.insightType}
-                                    </span>
-                                  </td>
-                                </>
-                              ) : (
-                                <>
-                                  <td className="px-6 py-4 text-sm">
-                                    {item.assignedUserName || "—"}
-                                  </td>
-
-                                  <td className="px-6 py-4 text-sm">
-                                    {item.createdByName || "—"}
-                                  </td>
-
-                                  <td className="px-6 py-4 text-sm">
-                                    {formatDate(item.createdAt)}
-                                  </td>
-                                </>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
+              {/* On mobile the right-rail donuts are inlined here rather than
+                  hidden, so the phone does not lose the data entirely. */}
+              <div className="sm:m-5 py-3 xl:hidden">
+                <RightRail leads={leads} />
+              </div>
             </motion.div>
           </div>
 
-          {/* Right Rail */}
+          {/* Right Rail — desktop column. The mobile copy is inlined after
+              the funnel above. */}
           <div className="hidden xl:block max-w-96 p-6 border-l border-border bg-background">
             <RightRail leads={leads} />
           </div>
         </div>
       </main>
+
+      {/* Insight sheet (spec 9) — bottom sheet on mobile, dialog on desktop */}
+      <InsightSheet
+        stageKey={activeInsight}
+        records={insightData}
+        onClose={() => setActiveInsight(null)}
+        formatTime={formatTime}
+        formatDate={formatDate}
+      />
     </div>
   );
 };

@@ -1,21 +1,15 @@
 import React from "react";
-import Icon from "../../../components/AppIcon";
 
-const LoginHeader = () => {
-  return (
-    <div className="text-center mb-8">
-
-      {/* Welcome Message */}
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-foreground">
-          Welcome Back 👋
-        </h2>
-        <p className="text-muted-foreground">
-          Access your CRM dashboard to manage leads and track performance efficiently.
-        </p>
-      </div>
-    </div>
-  );
-};
+const LoginHeader = () => (
+  <div className="mb-8">
+    <h2 className="text-[28px] font-semibold leading-tight tracking-tight text-foreground lg:text-[32px]">
+      Welcome back
+    </h2>
+    <p className="mt-2 text-sm leading-relaxed text-muted-foreground/80 lg:text-base">
+      Sign in to manage leads, campaigns, and pipeline performance from a
+      single dashboard.
+    </p>
+  </div>
+);
 
 export default LoginHeader;

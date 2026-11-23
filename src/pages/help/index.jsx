@@ -80,7 +80,7 @@ const HelpPage = () => {
           onClose={() => setIsAppSidebarOpen(false)}
         />
 
-        <main className="lg:ml-64 pt-16">
+        <main className="top-bar-offset lg:ml-64">
           <div className="p-4 lg:p-8">
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
               <HelpSidebar />

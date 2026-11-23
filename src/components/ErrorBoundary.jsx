@@ -1,5 +1,6 @@
 import React from "react";
 import Icon from "./AppIcon";
+import ErrorCharacter from "./ErrorCharacter";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -7,50 +8,72 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
     error.__ErrorBoundary = true;
     window.__COMPONENT_ERROR__?.(error, errorInfo);
-    // console.log("Error caught by ErrorBoundary:", error, errorInfo);
+    // The detail stays in the console for whoever is debugging. It is
+    // deliberately never put on screen: the person who hits this is trying
+    // to do their job, and a stack trace only makes a bad moment worse.
+    console.error("Error caught by ErrorBoundary:", error, errorInfo);
   }
 
-  render() {
-    if (this.state?.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-          <div className="text-center p-8 max-w-md">
-            <div className="flex justify-center items-center mb-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="42px" height="42px" viewBox="0 0 32 33" fill="none">
-                <path d="M16 28.5C22.6274 28.5 28 23.1274 28 16.5C28 9.87258 22.6274 4.5 16 4.5C9.37258 4.5 4 9.87258 4 16.5C4 23.1274 9.37258 28.5 16 28.5Z" stroke="#343330" strokeWidth="2" strokeMiterlimit="10" />
-                <path d="M11.5 15.5C12.3284 15.5 13 14.8284 13 14C13 13.1716 12.3284 12.5 11.5 12.5C10.6716 12.5 10 13.1716 10 14C10 14.8284 10.6716 15.5 11.5 15.5Z" fill="#343330" />
-                <path d="M20.5 15.5C21.3284 15.5 22 14.8284 22 14C22 13.1716 21.3284 12.5 20.5 12.5C19.6716 12.5 19 13.1716 19 14C19 14.8284 19.6716 15.5 20.5 15.5Z" fill="#343330" />
-                <path d="M21 22.5C19.9625 20.7062 18.2213 19.5 16 19.5C13.7787 19.5 12.0375 20.7062 11 22.5" stroke="#343330" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <div className="flex flex-col gap-1 text-center">
-              <h1 className="text-2xl font-medium text-neutral-800">Something went wrong</h1>
-              <p className="text-neutral-600 text-base w w-8/12 mx-auto">We encountered an unexpected error while processing your request.</p>
-            </div>
-            <div className="flex justify-center items-center mt-6">
-              <button
-                onClick={() => {
-                  window.location.href = "/";
-                }}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded flex items-center gap-2 transition-colors duration-200 shadow-sm"
-              >
-                <Icon name="ArrowLeft" size={18} color="#fff" />
-                Back
-              </button>
-            </div>
-          </div >
-        </div >
-      );
-    }
+  handleReload = () => {
+    window.location.reload();
+  };
 
-    return this.props?.children;
+  handleHome = () => {
+    // HashRouter: set the route first, then reload so state rebuilds clean.
+    window.location.hash = "#/dashboard";
+    window.location.reload();
+  };
+
+  render() {
+    if (!this.state?.hasError) return this.props?.children;
+
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background px-5 py-10 pt-safe-gap">
+        <div className="w-full max-w-sm text-center">
+          <ErrorCharacter className="mx-auto h-44 w-44 sm:h-52 sm:w-52" />
+
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+            Let's try that again
+          </h1>
+
+          <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            This page didn't finish loading. A quick refresh usually sorts it —
+            nothing you've done has been lost.
+          </p>
+
+          <div className="mt-7 space-y-3">
+            <button
+              type="button"
+              onClick={this.handleReload}
+              className="group linearbg-1 flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-xl text-[15px] font-semibold text-white shadow-cta-glow transition-all duration-150 active:scale-[0.98]"
+            >
+              <Icon
+                name="RefreshCw"
+                size={18}
+                className="transition-transform duration-500 group-hover:rotate-180 group-active:animate-spin"
+              />
+              Refresh the page
+            </button>
+
+            <button
+              type="button"
+              onClick={this.handleHome}
+              className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold text-foreground transition-all duration-150 active:scale-[0.98] active:bg-muted"
+            >
+              <Icon name="ArrowLeft" size={16} />
+              Back to dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 }
 

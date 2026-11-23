@@ -5,7 +5,41 @@
   <meta charset="utf-8" />
   <title>CRM -  Aajneeti Connect ltd.</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#FAF8F6" />
+
+  <!--
+    Theme, applied BEFORE first paint.
+
+    Without this the page always paints light for the few hundred
+    milliseconds it takes the bundle to parse and the provider to mount, so a
+    rep who chose dark mode gets a white flash on every launch -- which on a
+    phone, opened dozens of times a day, is the most visible thing about the
+    feature.
+
+    Kept inline and dependency-free for the same reason: anything imported
+    arrives too late to matter. The storage key and class name are duplicated
+    from src/ThemeContext.jsx; change them in both.
+  -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('crm_theme');
+        var dark =
+          stored === 'dark' ||
+          ((!stored || stored === 'system') &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = 'dark';
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', '#0E1116');
+        }
+      } catch (e) {
+        /* storage blocked -- fall through to the light theme */
+      }
+    })();
+  </script>
   <meta name="description" content="Web site created using create-react-app" />
   <link rel="icon" href="/assets/images/aajneeti-favicon.png" />
   <link rel="manifest" href="/manifest.json" />

@@ -24,7 +24,10 @@ import CallPage from "./pages/call";
 import Pipeline from "pages/pipeline";
 import ProjectsPage from "pages/projects";
 import SalesTeam from "pages/sales-team";
+import TeamPerformance from "pages/team-performance";
 import HelpPage from "pages/help";
+import SiteVisitsPage from "./pages/sitevisits";
+import { isAdminOrOwner } from "./utils/permission";
 const Routes = () => {
   return (
     <HashRouter>
@@ -70,6 +73,17 @@ const Routes = () => {
               </ProtectedRoute>
             }
           />
+          {/* Gated in two places, because either alone is not a gate: the
+              sidebar entry (presentation) and the route itself. Both read
+              isAdminOrOwner, so the button and the URL cannot disagree. */}
+          <Route
+            path="/team-performance"
+            element={
+              <ProtectedRoute allow={isAdminOrOwner}>
+                <TeamPerformance />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/sales-team"
             element={
@@ -89,7 +103,7 @@ const Routes = () => {
             }
           />
           <Route
-            path="/projects"
+            path="/campaigns"
             element={
               <ProtectedRoute>
                 <ProjectsPage />
@@ -190,6 +204,14 @@ const Routes = () => {
             element={
               <ProtectedRoute>
                 <HelpPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sitevisits"
+            element={
+              <ProtectedRoute>
+                <SiteVisitsPage />
               </ProtectedRoute>
             }
           />

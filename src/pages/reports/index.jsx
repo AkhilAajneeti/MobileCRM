@@ -3,7 +3,11 @@ import { motion } from "framer-motion";
 import { Helmet } from "react-helmet";
 import Header from "../../components/ui/Header";
 import Sidebar from "../../components/ui/Sidebar";
-import MetricsCard from "./components/MetricsCard";
+// Shared with the dashboard, so the two surfaces stay identical (spec 2).
+import MetricsCard from "../dashboard/components/MetricsCard";
+import QualifiedBreakdown, {
+  QUALIFIED_STAGES,
+} from "../dashboard/components/QualifiedBreakdown";
 import FilterControls from "./components/FilterControls";
 import ConversionFunnelChart from "./components/ConversionFunnelChart";
 import WinRateChart from "./components/WinRateChart";
@@ -14,7 +18,11 @@ import Icon from "../../components/AppIcon";
 import DealsTable from "./components/DealsTable";
 // import { fetchLeads } from "services/leads.service";
 import { useNewLeads } from "hooks/useLeads";
-import { useFilteredMetrics } from "./hooks/useFilteredMetrics";
+import {
+  useFilteredMetrics,
+  useQualificationMetrics,
+  useQualifiedBreakdown,
+} from "./hooks/useFilteredMetrics";
 
 const Reports = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -181,6 +189,38 @@ const Reports = () => {
   // full filtered dataset, so the numbers stay correct beyond page 1.
   const { metricsData } = useFilteredMetrics({ filters });
 
+  // Qualification row + its breakdown drawer (spec 2 and 3). Both are
+  // filter-aware, so "All Leads" means everything in the current view.
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+
+  const {
+    qualificationData,
+    total: qualificationTotal,
+    isLoading: qualificationLoading,
+    // The "All Leads" total is the
+    // denominator for the status-row percentages too, which every role sees.
+    // Only the journey ROW is admin-only (spec 2).
+  } = useQualificationMetrics({ filters });
+
+  const { rows: breakdownRows, isLoading: breakdownLoading } =
+    useQualifiedBreakdown({
+      filters,
+      stages: QUALIFIED_STAGES,
+      enabled: isBreakdownOpen,
+    });
+
+  /**
+   * Status cards double as the table's status filter (spec 4.1). Tapping the
+   * selected card again clears it.
+   */
+  const handleStatusCardToggle = (status) => {
+    handleFiltersChange({
+      ...filters,
+      status: filters?.status === status ? "" : status,
+    });
+    setPage(1);
+  };
+
 
   return (
     <>
@@ -198,7 +238,7 @@ const Reports = () => {
         />
         <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
 
-        <main className="lg:ml-64 pt-16">
+        <main className="top-bar-offset lg:ml-64">
           <div className="p-4 lg:p-8">
             {/* Page Header */}
             <motion.div
@@ -226,26 +266,83 @@ const Reports = () => {
               </div>
             </motion.div>
 
-            {/* Key Metrics Cards */}
+            {/* Qualification row (spec 2) — the lead JOURNEY. Admin only.
+                This row and the status row below count different things and
+                deliberately overlap, so they are never summed together. */}
+            {/* Not role-gated. The backend already scopes every count to what
+                this user is allowed to see, so a rep sees their own totals
+                rather than the whole org's — there is nothing to withhold. */}
+            {qualificationTotal > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="mb-8"
+              >
+                <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
+                  {qualificationData.map((card) => (
+                    <MetricsCard
+                      key={card.title}
+                      title={card.title}
+                      value={card.value}
+                      share={card.share}
+                      icon={card.icon}
+                      from={card.from}
+                      to={card.to}
+                      description={card.description}
+                      isLoading={qualificationLoading}
+                      expandable={card.expandable}
+                      isOpen={card.expandable && isBreakdownOpen}
+                      onToggle={
+                        card.expandable
+                          ? () => setIsBreakdownOpen((open) => !open)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </div>
 
+                {/* Breakdown drawer (spec 3) */}
+                <div className="mt-3 sm:mt-5">
+                  <QualifiedBreakdown
+                    isOpen={isBreakdownOpen}
+                    rows={breakdownRows}
+                    isLoading={breakdownLoading}
+                  />
+                </div>
+              </motion.div>
+            )}
+
+            {/* Status row (spec 4) — CURRENT status, and the table's filter.
+                Every card here is a toggle. */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8"
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="mb-8"
             >
-              {metricsData?.map((metric, index) => (
-                <MetricsCard
-                  key={metric?.title}
-                  title={metric?.title}
-                  value={metric?.value}
-                  change={metric?.change}
-                  changeType={metric?.changeType}
-                  icon={metric?.icon}
-                  iconColor={metric?.iconColor}
-                  description={metric?.description}
-                />
-              ))}
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-3">
+                {metricsData?.map((metric) => (
+                  <MetricsCard
+                    key={metric?.title}
+                    title={metric?.title}
+                    value={metric?.value}
+                    // Share of ALL leads — a bare 10,153 means little without
+                    // "21% of everything" sitting next to it.
+                    share={
+                      qualificationTotal
+                        ? Math.round((metric.value / qualificationTotal) * 100)
+                        : null
+                    }
+                    icon={metric?.icon}
+                    from={metric?.from}
+                    to={metric?.to}
+                    description={metric?.description}
+                    isOpen={filters?.status === metric?.status}
+                    onToggle={() => handleStatusCardToggle(metric?.status)}
+                  />
+                ))}
+              </div>
             </motion.div>
 
             {/* Filter Controls */}
@@ -289,7 +386,6 @@ const Reports = () => {
             <DealsTable
               deals={leads}
               sortConfig={sortConfig}
-              onSelectDeal={handleSelectDeal}
               onSort={handleSort}
               currentPage={page}
               itemsPerPage={limit}

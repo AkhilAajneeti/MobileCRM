@@ -1,13 +1,18 @@
 export const fetchUser = async () => {
   const token = localStorage.getItem("auth_token");
-  console.log("AUTH TOKEN:", token); // 🔍 debug
-  const res = await fetch("https://gateway.aajneetiadvertising.com/User", {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      token: token, // ✅ backend expects this
-    },
-  });
+  // Without an explicit maxSize the API returns only its default first page
+  // (~20 users). That list backs the assigned-user lookup used to resolve a
+  // lead's team for permission checks, so a short page made leads assigned
+  // to anyone further down look un-editable.
+  const res = await fetch(
+    "https://gateway.aajneetiadvertising.com/User?maxSize=200&orderBy=name&order=asc",
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        token: token, // ✅ backend expects this
+      },
+    });
   if (!res.ok) {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {

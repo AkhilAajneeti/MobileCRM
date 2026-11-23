@@ -7,6 +7,9 @@ import Sidebar from "../../components/ui/Sidebar";
 import Icon from "../../components/AppIcon";
 import Button from "../../components/ui/Button";
 import DealsTable from "./components/DealsTable";
+import ProjectCard from "./components/ProjectCard";
+import ProjectKpiRow from "./components/ProjectKpiRow";
+import { useProjectLeadCounts, useProjectKpis } from "./hooks/useProjectLeadCounts";
 import DealsFilters from "./components/DealsFilters";
 import DealDrawer from "./components/DealDrawer";
 import Papa from "papaparse";
@@ -29,6 +32,8 @@ const ProjectsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [mode, setMode] = useState("view");
+  // Default view is cards; the choice is not persisted (spec 5.4).
+  const [view, setView] = useState("cards");
 
   const [sortConfig, setSortConfig] = useState({
     key: "createdAt",
@@ -66,6 +71,36 @@ const ProjectsPage = () => {
 
   const projects = data?.list || [];
   const totalItems = data?.total || 0;
+
+  // Is any campaign filter narrowing the list? Drives whether the KPI row
+  // counts leads company-wide or only across the filtered campaigns.
+  const isFiltered = useMemo(
+    () =>
+      Object.values(filters).some(
+        (v) => v !== "" && v !== null && v !== undefined,
+      ),
+    [filters],
+  );
+
+  // The KPI row must reflect EVERY filtered campaign, not just the page on
+  // screen -- `projects` above is one page, so scoping from it under-counts
+  // as soon as the filter matches more than a page. Fetched once,
+  // unpaginated, for scoping only, and skipped when no filter is active.
+  const { data: scopeData } = useProjects({
+    page: 1,
+    limit: 200,
+    filters,
+    orderBy: "createdAt",
+    order: "desc",
+    enabled: isFiltered,
+  });
+  // Fall back to the current page while that query is in flight, so the
+  // numbers read as filtered rather than flashing the global total.
+  const scopeProjects = isFiltered ? scopeData?.list || projects : null;
+
+  // Card numbers are only fetched for the view that shows them.
+  const { leadCounts } = useProjectLeadCounts(projects, view === "cards");
+  const kpiValues = useProjectKpis(totalItems, { scopeProjects, isFiltered });
 
   // KEEP ACL permission filtering (MANDATORY)
   // const visibleProjects = projects.filter(project =>
@@ -302,13 +337,16 @@ const ProjectsPage = () => {
         <Header onMenuToggle={handleMenuToggle} isSidebarOpen={isSidebarOpen} />
         <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
 
-        <main className="lg:ml-64 pt-16">
+        <main className="top-bar-offset lg:ml-64">
           <div className="p-4 lg:p-6">
             {/* Page Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
               <div>
+                {/* Three names, one screen: the route is /campaigns (what the
+                    backend calls it), the sidebar says My Campaigns, and the
+                    page heading says My Projects. */}
                 <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-                  Projects
+                  My Projects
                 </h1>
                 <p className="text-muted-foreground mt-1">
                   Easily create, assign, and track tasks to ensure every
@@ -317,35 +355,90 @@ const ProjectsPage = () => {
                 </p>
               </div>
               <div className="flex items-center space-x-3">
-                <Button
-                  variant="outline" className="linearbg-1 text-white hover:text-white"
-                  onClick={() =>
-                    exportLeadsToCSV(projects, "all_leads")
-                  }
-                >
-                  <Icon name="Download" size={16} className="mr-2" />
-                  Export All
-                </Button>
-
-               {canCreate('CProjects') && ( <Button onClick={handleAddLeads} className="linearbg-1 text-white hover:text-white">
-                  <Icon name="Plus" size={16} className="mr-2" />
-                  New Project
-                </Button>)}
-
+                {/* `Export All` is commented out on web — see spec 12. */}
+                {canCreate("CProjects") && (
+                  <Button
+                    onClick={handleAddLeads}
+                    fullWidth
+                    className="linearbg-1 min-h-[44px] border border-[#6E1420]/30 text-white shadow-[0_1px_2px_rgba(16,24,40,.06),0_6px_16px_-6px_rgba(110,20,32,.45)] transition-shadow hover:text-white hover:shadow-[0_2px_4px_rgba(16,24,40,.08),0_10px_22px_-6px_rgba(110,20,32,.55)] lg:w-auto"
+                  >
+                    <Icon name="Plus" size={16} className="mr-2" />
+                    New Campaign
+                  </Button>
+                )}
               </div>
             </div>
 
-            {/* Filters */}
-            <DealsFilters
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              onClearFilters={handleClearFilters}
-              dealCount={projects?.length}
-              onBulkAction={handleBulkAction}
-              selectedCount={selectedDeals?.length}
-            />
+            <ProjectKpiRow values={kpiValues} />
 
-            {/* Deals Table */}
+            {/* Filter card and view toggle sit side by side from lg */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+
+              <div className="min-w-0 flex-1">
+                <DealsFilters
+                  filters={filters}
+                  onFiltersChange={handleFiltersChange}
+                  onClearFilters={handleClearFilters}
+                  dealCount={totalItems}
+                  onBulkAction={handleBulkAction}
+                  selectedCount={selectedDeals?.length}
+                />
+              </div>
+
+              {/* 5.4 — two equal pills, full width and centred on a phone,
+                  shrinking to their own width beside the filters from lg. */}
+              <div className="mx-auto mb-6 flex w-full shrink-0 rounded-full border border-[#6E1420]/15 bg-card p-1 shadow-[0_1px_2px_rgba(16,24,40,.06),0_4px_12px_-4px_rgba(16,24,40,.12)] sm:w-auto sm:max-w-[260px] lg:mx-0">
+                {["cards", "table"].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setView(option)}
+                    className={`flex-1 rounded-full px-5 py-2 text-sm font-semibold capitalize transition-colors sm:flex-none ${
+                      view === option
+                        ? "bg-[#6E1420] text-white shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {view === "cards" ? (
+              <>
+                {loading ? (
+                  <div className="flex items-center justify-center py-20 text-muted-foreground">
+                    <Icon name="Loader" size={22} className="mr-2 animate-spin" />
+                    Loading campaigns…
+                  </div>
+                ) : !projects.length ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <Icon name="Layers" size={28} className="mb-2 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground">
+                      No projects found
+                    </p>
+                  </div>
+                ) : (
+                  // The 26px gutter is deliberate: the cards carry a lift and
+                  // a halo, and a tighter gap makes neighbouring halos overlap.
+                  <div className="mt-4 grid grid-cols-1 gap-[26px] sm:grid-cols-2 xl:grid-cols-3">
+                    {projects.map((project, index) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        index={index}
+                        totalLeads={leadCounts[project.id]?.total}
+                        newToday={leadCounts[project.id]?.today}
+                        isLoading={leadCounts[project.id] == null}
+                        onOpen={handleDealClick}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+            /* Deals Table */
             <DealsTable
               deals={projects}
               selectedDeals={selectedDeals}
@@ -359,8 +452,10 @@ const ProjectsPage = () => {
               onDelete={handleDeleteLead}
               isLoading={loading}
             />
+            )}
 
-            {/* Pagination */}
+            {/* Pagination — the table card's footer in table view, and
+                free-standing below the grid in cards view (spec 8). */}
             <TablePagination
               currentPage={currentPage}
               totalPages={totalPages}

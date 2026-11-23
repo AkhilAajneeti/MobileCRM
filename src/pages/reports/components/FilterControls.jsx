@@ -11,12 +11,10 @@ const FilterControls = ({
   onFiltersChange,
   onClearFilters,
   dealCount,
-  onBulkAction,
   selectedCount,
   toggleAnalytics,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showBulkActions, setShowBulkActions] = useState(false);
   const [assignUser, setAssignUser] = useState([]);
 
   const daysOptions = [
@@ -44,10 +42,6 @@ const FilterControls = ({
       .catch((err) => console.error("User fetch failed", err));
   }, []);
 
-  const handleBulkActionSelect = (action) => {
-    onBulkAction(action);
-    setShowBulkActions(false);
-  };
   const showDateInputs = [
     "between",
     "after",
@@ -58,6 +52,23 @@ const FilterControls = ({
   const activeFiltersCount = Object.values(filters)?.filter(
     (value) => value !== "" && value !== null && value !== undefined,
   )?.length;
+
+  /** Human labels for the active-filter pills. */
+  const FILTER_LABELS = {
+    search: "Search",
+    status: "Status",
+    source: "Source",
+    assignUser: "User",
+    dateType: "Date",
+    closeDateFrom: "From",
+    closeDateTo: "To",
+  };
+
+  const activeFilterEntries = Object.entries(filters || {}).filter(
+    ([, value]) => value !== "" && value !== null && value !== undefined,
+  );
+
+  const today = new Date().toISOString().split("T")[0];
   const assignUserOptions = assignUser.map((acc) => ({
     value: acc.id, // 👈 important (ID use karo)
     label: acc.name,
@@ -95,98 +106,93 @@ const FilterControls = ({
     { value: "Switch Off", label: "Switch Off" },
   ];
   return (
-    <div className="bg-card border border-border rounded-lg p-4 mb-6">
-      {/* Header Row */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-        <div className="flex items-center space-x-4">
-          <h2 className="text-lg font-semibold text-foreground">
-            leads ({dealCount?.toLocaleString()})
-          </h2>
-          {activeFiltersCount > 0 && (
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-                {activeFiltersCount} filter{activeFiltersCount !== 1 ? "s" : ""}{" "}
-                active
+    // Note the 2xl radius and softer list-card shadow — slightly different
+    // from the Leads page panel, which uses rounded-xl and shadow-sm.
+    <div className="mb-6 rounded-2xl border border-[rgba(20,20,30,0.08)] bg-card shadow-[0_1px_2px_rgba(16,24,40,.04),0_4px_16px_rgba(16,24,40,.06)]">
+      {/* Header strip */}
+      <div className="rounded-t-2xl border-b border-border bg-gradient-to-r from-slate-50/80 via-slate-50/30 to-transparent px-5 py-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* BarChart3 here, not the Leads panel's Target */}
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10">
+                <Icon name="BarChart3" size={14} className="text-primary" />
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClearFilters}
-                className="text-xs"
-              >
-                Clear all
-              </Button>
-            </div>
-          )}
-        </div>
+              <h2 className="text-base font-semibold text-foreground">
+                Leads
+                <span className="ml-1.5 text-sm font-medium text-muted-foreground tabular-nums">
+                  {dealCount?.toLocaleString()}
+                </span>
+              </h2>
 
-        <div className="flex items-center space-x-2">
-          {selectedCount > 0 && (
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">
-                {selectedCount} selected
-              </span>
-              <div className="relative">
+              {activeFiltersCount > 0 && (
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowBulkActions(!showBulkActions)}
+                  variant="ghost"
+                  onClick={onClearFilters}
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <Icon name="MoreHorizontal" size={16} className="mr-1" />
-                  Actions
+                  Clear all
                 </Button>
+              )}
 
-                {showBulkActions && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowBulkActions(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-popover border border-border rounded-lg shadow-elevation-2 z-50">
-                      <div className="py-1">
-                        {bulkActions?.map((action) => (
-                          <button
-                            key={action?.value}
-                            onClick={() =>
-                              handleBulkActionSelect(action?.value)
-                            }
-                            className="flex items-center w-full px-3 py-2 text-sm text-popover-foreground hover:bg-muted transition-smooth"
-                          >
-                            <Icon
-                              name={action?.icon}
-                              size={16}
-                              className="mr-2"
-                            />
-                            {action?.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Feedback only — Reports has no bulk update or mass delete,
+                  so there are deliberately no action buttons beside it. */}
+              {selectedCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/60 bg-violet-100/80 px-2.5 py-1 text-xs font-medium text-violet-700">
+                  <Icon name="CheckCircle2" size={12} />
+                  {selectedCount} selected
+                </span>
+              )}
             </div>
-          )}
+
+            {/* Active-filter pills — neutral here, not primary-tinted */}
+            {activeFilterEntries.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {activeFilterEntries.map(([key, value]) => (
+                  <span
+                    key={key}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(20,20,30,0.1)] bg-muted/60 py-1 pl-3 pr-1.5 text-xs font-medium text-foreground"
+                  >
+                    <span className="text-muted-foreground">
+                      {FILTER_LABELS[key] || key}
+                    </span>
+                    <span className="max-w-[120px] truncate font-semibold">
+                      {String(value)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleFilterChange(key, "")}
+                      aria-label={`Remove ${FILTER_LABELS[key] || key} filter`}
+                      className="ml-0.5 grid place-items-center rounded-full p-0.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                    >
+                      <Icon name="X" size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="lg:hidden w-full"
+            className="w-full lg:hidden"
           >
-            <Icon name="Filter" size={16} className="mr-1" />
+            <Icon name="SlidersHorizontal" size={14} className="mr-1.5" />
             Filters
             <Icon
               name="ChevronDown"
-              size={16}
-              className={`ml-1 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+              size={14}
+              className={`ml-auto transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
             />
           </Button>
         </div>
       </div>
-      {/* Filters */}
+
+      {/* Filter grid */}
       <div
-        className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 ${isExpanded ? "block" : "hidden lg:grid"}`}
+        className={`grid grid-cols-1 gap-3 p-4 md:grid-cols-2 lg:grid-cols-5 ${isExpanded ? "block" : "hidden lg:grid"}`}
       >
         <Input
           type="search"
@@ -224,13 +230,15 @@ const FilterControls = ({
           searchable
         />
       </div>
-      {/* Advanced Filters Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mt-4 pt-4 border-t border-border">
-        <div className="flex flex-col sm:flex-row gap-3 w-full">
+      {/* Footer row */}
+      <div className="flex flex-col justify-between gap-3 border-t border-border px-4 pb-4 pt-4 sm:flex-row sm:items-end">
+        <div className="w-full">
           {showDateInputs && (
-            <div className="flex gap-2">
+            <div className="flex w-full flex-col gap-2 sm:flex-row">
               <Input
                 type="date"
+                // Never let someone pick a future start date.
+                max={today}
                 value={filters?.closeDateFrom || ""}
                 onChange={(e) =>
                   handleFilterChange("closeDateFrom", e.target.value)
@@ -239,6 +247,9 @@ const FilterControls = ({
               {filters?.dateType === "between" && (
                 <Input
                   type="date"
+                  // The end of a range cannot precede its start.
+                  min={filters?.closeDateFrom || undefined}
+                  max={today}
                   value={filters?.closeDateTo || ""}
                   onChange={(e) =>
                     handleFilterChange("closeDateTo", e.target.value)
@@ -248,8 +259,15 @@ const FilterControls = ({
             </div>
           )}
         </div>
+
         <RoleGuard allowedRoles={["admin", "regular"]}>
-          <Button onClick={toggleAnalytics} className="linearbg-1 text-white hover:text-white">Report Analytics</Button>
+          <Button
+            onClick={toggleAnalytics}
+            fullWidth
+            className="linearbg-1 text-white hover:text-white sm:w-auto"
+          >
+            Report Analytics
+          </Button>
         </RoleGuard>
       </div>
     </div>

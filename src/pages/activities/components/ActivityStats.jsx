@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import Icon from "../../../components/AppIcon";
+import StatTile from "../../../components/ui/StatTile";
 
 const ActivityStats = ({ activities = [],total }) => {
   /* =========================
@@ -48,66 +48,24 @@ const ActivityStats = ({ activities = [],total }) => {
      UI
   ========================= */
 
+  // One accent hex per tile drives its tint, glyph and selected ring.
   const statCards = [
-    {
-      label: "Total Activities",
-      value: total,
-      icon: "Activity",
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
-    },
-    {
-      label: "Created",
-      value: stats.created,
-      icon: "PlusCircle",
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-    },
-    {
-      label: "Updates",
-      value: stats.updates,
-      icon: "RefreshCw",
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-100",
-    },
-    {
-      label: "Comments",
-      value: stats.comments,
-      icon: "MessageSquare",
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
+    { label: "Total Activities", value: total, icon: "Activity", accent: "#2563EB" },
+    { label: "Created", value: stats.created, icon: "PlusCircle", accent: "#059669" },
+    { label: "Updates", value: stats.updates, icon: "RefreshCcw", accent: "#CA8A04" },
+    { label: "Comments", value: stats.comments, icon: "MessageSquare", accent: "#8B5CF6" },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 gap-3 mb-6 sm:gap-4 lg:grid-cols-4">
       {statCards.map((stat) => (
-        <div
+        <StatTile
           key={stat.label}
-          className="bg-card border border-border rounded-lg p-4 hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">
-                {stat.label}
-              </p>
-
-              <p className="text-2xl font-bold text-foreground">
-                {stat.value}
-              </p>
-            </div>
-
-            <div
-              className={`w-12 h-12 rounded-full ${stat.bgColor} flex items-center justify-center`}
-            >
-              <Icon
-                name={stat.icon}
-                size={24}
-                className={stat.color}
-              />
-            </div>
-          </div>
-        </div>
+          label={stat.label}
+          value={stat.value}
+          icon={stat.icon}
+          accent={stat.accent}
+        />
       ))}
     </div>
   );

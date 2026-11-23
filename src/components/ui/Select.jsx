@@ -1,9 +1,31 @@
 // components/ui/Select.jsx - Shadcn style Select
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Check, Search, X } from "lucide-react";
 import { cn } from "../../utils/cn";
 import Button from "./Button";
 import Input from "./Input";
+
+/**
+ * On a phone the option list is presented as a bottom sheet rather than a
+ * popover (spec 4.3) -- same surface tokens, sheet geometry from spec 6.
+ * `md` (768px) is the same breakpoint the list view switches card/table at.
+ */
+const useIsMobileViewport = () => {
+    const [isMobile, setIsMobile] = useState(
+        () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+    );
+
+    useEffect(() => {
+        if (typeof window === "undefined") return undefined;
+        const query = window.matchMedia("(max-width: 767px)");
+        const onChange = (event) => setIsMobile(event.matches);
+        query.addEventListener("change", onChange);
+        return () => query.removeEventListener("change", onChange);
+    }, []);
+
+    return isMobile;
+};
 
 const Select = React.forwardRef(({
     className,
@@ -35,6 +57,7 @@ const Select = React.forwardRef(({
 }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const isMobile = useIsMobileViewport();
 
     // Ref on the outer container — used by the click-outside listener to
     // detect whether a `mousedown` happened inside the select (trigger or
@@ -68,15 +91,20 @@ const Select = React.forwardRef(({
             }
         };
 
-        document.addEventListener("mousedown", handlePointerDown);
-        document.addEventListener("touchstart", handlePointerDown);
+        // The mobile bottom sheet is portaled to document.body, so it sits
+        // outside containerRef and would be treated as an outside click.
+        // It brings its own tap-to-dismiss backdrop instead.
+        if (!isMobile) {
+            document.addEventListener("mousedown", handlePointerDown);
+            document.addEventListener("touchstart", handlePointerDown);
+        }
         document.addEventListener("keydown", handleKeyDown);
         return () => {
             document.removeEventListener("mousedown", handlePointerDown);
             document.removeEventListener("touchstart", handlePointerDown);
             document.removeEventListener("keydown", handleKeyDown);
         };
-    }, [isOpen, onOpenChange]);
+    }, [isOpen, isMobile, onOpenChange]);
 
     // Generate unique ID if not provided
     const selectId = id || `select-${Math.random()?.toString(36)?.substr(2, 9)}`;
@@ -146,6 +174,74 @@ const Select = React.forwardRef(({
     };
 
     const hasValue = multiple ? value?.length > 0 : value !== undefined && value !== '';
+
+    /**
+     * The option list. Shared verbatim by the desktop popover and the
+     * mobile bottom sheet so the two can never drift apart. Rows are
+     * min-h-[44px] to stay thumb-sized on a phone.
+     */
+    const menuBody = (
+        <>
+            {searchable && (
+                <div className="p-3 border-b border-border">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search options..."
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                            className="pl-10 bg-input border-border"
+                        />
+                    </div>
+                </div>
+            )}
+
+            <div className={cn("py-1 overflow-auto", !isMobile && "max-h-60")}>
+                {filteredOptions?.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-muted-foreground text-center">
+                        {searchTerm ? 'No options found' : 'No options available'}
+                    </div>
+                ) : (
+                    filteredOptions?.map((option) => (
+                        <div
+                            key={option?.value}
+                            title={option?.label}
+                            className={cn(
+                                // Switch from `items-center` to `items-start`
+                                // when wrapping so a 2-line label keeps the
+                                // check icon aligned to the top of the row.
+                                "relative flex cursor-pointer select-none rounded-md mx-1 px-3 text-sm outline-none transition-smooth active:bg-primary/10",
+                                isMobile ? "min-h-[44px] py-3" : "py-2.5 hover:bg-primary/10 hover:text-primary",
+                                wrapOptions ? "items-start" : "items-center",
+                                isSelected(option?.value) && "bg-primary/20 text-primary font-medium",
+                                option?.disabled && "pointer-events-none opacity-50 cursor-not-allowed"
+                            )}
+                            onClick={() => !option?.disabled && handleOptionSelect(option)}
+                        >
+                            <span
+                                className={cn(
+                                    "flex-1",
+                                    wrapOptions
+                                        ? "whitespace-normal break-words leading-snug"
+                                        : "truncate",
+                                )}
+                            >
+                                {option?.label}
+                            </span>
+                            {isSelected(option?.value) && (
+                                <Check className="h-4 w-4 ml-2 flex-shrink-0 text-primary" />
+                            )}
+                            {option?.description && (
+                                <span className="text-[11px] text-muted-foreground ml-2 truncate max-w-24">
+                                    {option?.description}
+                                </span>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+        </>
+    );
 
     return (
         <div ref={containerRef} className={cn("relative", className)}>
@@ -223,76 +319,57 @@ const Select = React.forwardRef(({
                     ))}
                 </select>
 
-                {/* Dropdown */}
-                {isOpen && (
+                {/* Dropdown -- popover on desktop, bottom sheet on mobile */}
+                {isOpen && (isMobile ? (
+                    createPortal(
+                        <div className="fixed inset-0 z-[70] md:hidden">
+                            <div
+                                className="absolute inset-0 bg-black/40 backdrop-blur-[3px] animate-fade-in"
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    setSearchTerm("");
+                                    onOpenChange?.(false);
+                                }}
+                            />
+                            <div className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col overflow-hidden rounded-t-[28px] border-t border-border bg-background shadow-sheet motion-safe:animate-sheet-up">
+                                {/* Grabber */}
+                                <div className="flex shrink-0 justify-center pb-1 pt-3.5">
+                                    <div className="h-1.5 w-11 rounded-full bg-foreground/15" />
+                                </div>
+
+                                <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-2">
+                                    <span className="truncate text-base font-semibold text-foreground">
+                                        {label || placeholder}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        aria-label="Close"
+                                        onClick={() => {
+                                            setIsOpen(false);
+                                            setSearchTerm("");
+                                            onOpenChange?.(false);
+                                        }}
+                                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground transition-transform active:scale-95"
+                                    >
+                                        <X className="h-[18px] w-[18px]" />
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto overscroll-touch pb-safe">
+                                    {menuBody}
+                                </div>
+                            </div>
+                        </div>,
+                        document.body
+                    )
+                ) : (
                     <div className={cn(
                         "absolute z-50 w-full mt-2 bg-card text-card-foreground border border-border rounded-lg shadow-elevation-2 backdrop-blur-sm",
                         dropdownClassName,
                     )}>
-
-                        {searchable && (
-                            <div className="p-3 border-b border-border">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search options..."
-                                        value={searchTerm}
-                                        onChange={handleSearchChange}
-                                        className="pl-10 bg-input border-border"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="py-1 max-h-60 overflow-auto">
-                            {filteredOptions?.length === 0 ? (
-                                <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                                    {searchTerm ? 'No options found' : 'No options available'}
-                                </div>
-                            ) : (
-                                filteredOptions?.map((option) => (
-                                    <div
-                                        key={option?.value}
-                                        title={option?.label}
-                                        className={cn(
-                                            // Switch from `items-center` to
-                                            // `items-start` when wrapping so a
-                                            // 2-line label keeps the check icon
-                                            // aligned to the top of the row.
-                                            "relative flex cursor-pointer select-none rounded-md mx-1 px-3 py-2.5 text-sm outline-none transition-smooth hover:bg-primary/10 hover:text-primary",
-                                            wrapOptions ? "items-start" : "items-center",
-                                            isSelected(option?.value) && "bg-primary/20 text-primary font-medium",
-                                            option?.disabled && "pointer-events-none opacity-50 cursor-not-allowed"
-                                        )}
-                                        onClick={() => !option?.disabled && handleOptionSelect(option)}
-                                    >
-                                        <span
-                                            className={cn(
-                                                "flex-1",
-                                                wrapOptions
-                                                    ? "whitespace-normal break-words leading-snug"
-                                                    : "truncate",
-                                            )}
-                                        >
-                                            {option?.label}
-                                        </span>
-                                        {multiple && isSelected(option?.value) && (
-                                            <Check className="h-4 w-4 ml-2 flex-shrink-0 text-primary" />
-                                        )}
-                                        {!multiple && isSelected(option?.value) && (
-                                            <Check className="h-4 w-4 ml-2 flex-shrink-0 text-primary" />
-                                        )}
-                                        {option?.description && (
-                                            <span className="text-xs text-muted-foreground ml-2 truncate max-w-24">
-                                                {option?.description}
-                                            </span>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
+                        {menuBody}
                     </div>
-                )}
+                ))}
             </div>
             {description && !error && (
                 <p className="text-sm text-muted-foreground mt-2">

@@ -6,6 +6,7 @@ import CompanyTab from "./components/CompanyTab";
 import TeamsTab from "./components/TeamsTab";
 import PipelineTab from "./components/PipelineTab";
 import UserTab from "./components/UserTab";
+import AppearanceTab from "./components/AppearanceTab";
 
 const Settings = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -32,6 +33,12 @@ const Settings = () => {
       icon: "Users",
       description: "Create and manage custom fields",
     },
+    {
+      id: "appearance",
+      label: "Appearance",
+      icon: "Palette",
+      description: "Light, dark or follow the device",
+    },
   ];
 
   const renderTabContent = () => {
@@ -42,6 +49,8 @@ const Settings = () => {
         return <UserTab />;
       case "team":
         return <TeamsTab />;
+      case "appearance":
+        return <AppearanceTab />;
       case "pipeline":
         return <PipelineTab />;
       default:
@@ -56,7 +65,7 @@ const Settings = () => {
         isSidebarOpen={isSidebarOpen}
       />
       <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
-      <main className="lg:ml-64 pt-16">
+      <main className="top-bar-offset lg:ml-64">
         <div className="p-4 lg:p-8">
           {/* Page Header */}
           <div className="mb-8">

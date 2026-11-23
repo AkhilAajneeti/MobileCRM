@@ -68,10 +68,10 @@ const TablePagination = ({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-card border-t border-border">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-card border-t border-border rounded-b-2xl">
       {/* Items info and per page selector */}
       <div className="flex items-center space-x-4">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground tabular-nums">
           Showing {startItem?.toLocaleString()} to {endItem?.toLocaleString()} of {totalItems?.toLocaleString()} results
         </div>
         <div className="hidden sm:block">

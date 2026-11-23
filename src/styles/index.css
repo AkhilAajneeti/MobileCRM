@@ -11,20 +11,7 @@ body {
   margin: unset;
 }
 
-input {
-  border-color: #5bcd5f4d !important;
-}
-
-select {
-  /* --tw-ring-color: #5bcd5f4d!important; */
-  border-color: #5bcd5f4d !important;
-}
-
-select:focus {
-  --tw-ring-color: #5bcd5f4d !important;
-  border-color: #5bcd5f4d !important;
-}
-
+/* Brand wordmark pills */
 .bg-mahroon-200 {
   background-color: #fce8e7;
 }
@@ -37,11 +24,130 @@ select:focus {
   background-color: #AC2334;
 }
 
+/* Brand gradient: primary CTA, active nav row, sheet Save (spec 1.1) */
 .linearbg-1 {
   background: linear-gradient(52deg, #000000, #AC2334);
 }
 
-/*  */
+/* Native date/time fields: the whole field opens the picker, not just the
+   icon (spec 4.2). Stretch the indicator over the control. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  position: relative;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------
+   Error-screen character.
+   Small, looping motions only — the character should feel calm and
+   patient, not frantic, because the person seeing it is already stuck.
+   ------------------------------------------------------------------ */
+@keyframes ebFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+
+@keyframes ebShadow {
+  0%, 100% { transform: scaleX(1);    opacity: 0.16; }
+  50%      { transform: scaleX(0.82); opacity: 0.09; }
+}
+
+/* Long open phase, quick shut — reads as a natural blink. */
+@keyframes ebBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96%           { transform: scaleY(0.08); }
+}
+
+@keyframes ebAntenna {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.82); }
+}
+
+@keyframes ebWave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  70%           { transform: rotate(-22deg); }
+  85%           { transform: rotate(-8deg); }
+}
+
+.eb-float   { animation: ebFloat 3.6s ease-in-out infinite; }
+.eb-shadow  { animation: ebShadow 3.6s ease-in-out infinite; transform-origin: center; }
+.eb-blink   { animation: ebBlink 4.2s ease-in-out infinite; transform-origin: center; }
+.eb-antenna { animation: ebAntenna 2s ease-in-out infinite; transform-origin: center; }
+.eb-wave    { animation: ebWave 3.6s ease-in-out infinite; transform-origin: 118px 118px; }
+
+/* KPI loading skin (spec 3.3). These two classes were referenced by the
+   dashboard cards but had no definition, so the loading state rendered
+   inert. A sweep across the card reads as "data arriving". */
+.kpi-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%
+  );
+  animation: kpiShimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.kpi-glow {
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 2px 8px rgba(16, 24, 40, 0.05);
+}
+
+/* Dark theme: a soft shadow over a near-black page is invisible, so the card
+   loses its edge entirely. A hairline of light along the top does the job a
+   drop shadow does in the light theme -- it says "this surface is in front". */
+.dark .kpi-glow {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+/* The shimmer sweep is a white highlight. At 55% it is a white flash across a
+   dark card -- bright enough to read as a fault rather than as loading. */
+.dark .kpi-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes kpiShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-shimmer::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @keyframes reminderShake {
   0% {
     transform: translateX(0);

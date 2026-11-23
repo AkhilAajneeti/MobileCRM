@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Icon from "../../../components/AppIcon";
+import LeadDistributionPanel from "./LeadDistributionPanel";
 import Button from "../../../components/ui/Button";
 import Select from "../../../components/ui/Select";
 import Input from "components/ui/Input";
@@ -21,8 +22,9 @@ const DealDrawer = ({
   onBulkUpdate,
   onDelete,
 }) => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("distribution");
   const [isEditing, setIsEditing] = useState(false);
+  const [isSavingDistribution, setIsSavingDistribution] = useState(false);
   const [users, setUsers] = useState([]);
   const [team, setTeam] = useState([]);
 
@@ -104,13 +106,34 @@ const DealDrawer = ({
     });
   };
 
+  // Lead Distribution is FIRST and is the default (spec 9.1).
   const tabs = [
+    { id: "distribution", label: "Lead Distribution", icon: "Share2" },
     { id: "overview", label: "Overview", icon: "Eye" },
     { id: "Teams", label: "Teams / Collaborators", icon: "Users" },
   ];
 
   const handleChange = (key, value) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  /**
+   * Resets to the default tab on every open, keyed on both the open flag and
+   * the project id (spec 9.1). Without it, a user who last viewed Overview
+   * would reopen the NEXT project on Overview.
+   */
+  useEffect(() => {
+    if (isOpen) setActiveTab("distribution");
+  }, [isOpen, deal?.id]);
+
+  /** One request carrying just the three distribution fields (spec 10.1). */
+  const handleSaveDistribution = async (fields) => {
+    setIsSavingDistribution(true);
+    try {
+      await onUpdate(deal.id, fields);
+    } finally {
+      setIsSavingDistribution(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -387,21 +410,26 @@ const DealDrawer = ({
             )}
             {mode !== "add" && deal && !isEditing && (
               <>
-                {/* Tabs */}
-                <div className="flex items-center space-x-1 p-4 border-b border-border">
+                {/* Tabs — a tinted strip with a pill for the active tab, so
+                    the bar reads as navigation rather than three loose
+                    buttons floating on white. Scrolls horizontally, which is
+                    what a phone needs. */}
+                <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-muted/40 px-4 py-2.5 scrollbar-hide">
                   {tabs?.map((tab) => (
                     <button
                       key={tab?.id}
                       onClick={() => setActiveTab(tab?.id)}
-                      className={`
-                  flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-lg transition-smooth
-                  ${activeTab === tab?.id
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                        }
-                `}
+                      className={`group flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-all duration-200 ease-premium ${
+                        activeTab === tab?.id
+                          ? "bg-[#AC2334] text-white shadow-md shadow-[#AC2334]/25"
+                          : "text-muted-foreground hover:-translate-y-0.5 hover:bg-card hover:text-foreground hover:shadow-sm"
+                      }`}
                     >
-                      <Icon name={tab?.icon} size={16} />
+                      <Icon
+                        name={tab?.icon}
+                        size={16}
+                        className="transition-transform duration-200 group-hover:scale-110"
+                      />
                       <span>{tab?.label}</span>
                     </button>
                   ))}
@@ -409,6 +437,15 @@ const DealDrawer = ({
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
+                  {activeTab === "distribution" && (
+                    <LeadDistributionPanel
+                      project={deal}
+                      users={users}
+                      isSaving={isSavingDistribution}
+                      onSave={handleSaveDistribution}
+                    />
+                  )}
+
                   {activeTab === "overview" && (
                     <div className="space-y-6">
                       {/* ================= Overview ================= */}

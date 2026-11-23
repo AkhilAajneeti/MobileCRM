@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import Icon from "../../../components/AppIcon";
 import { useUrgentLeads } from "../../../hooks/useUrgentLeads";
+import { getInitials } from "../../../utils/statusTokens";
 
 // Format a Date as `HH:MM` in the user's locale (24h with leading zeros).
 const formatClock = (date) =>
@@ -155,8 +156,12 @@ const NotificationRow = ({ deal, variant, onClick }) => {
   const urgencyClass = urgencyTextForRow(variant, deal.nextContactDate);
   const urgencyLabel = relativeUrgency(variant, deal.nextContactDate);
 
+  const whatsappMessage =
+    `Hello *${fullTitle}*,\n` +
+    `Following up on your enquiry — let me know a good time to connect.`;
+
   // `div role="button"` instead of a real <button> so we can legally nest
-  // an <a href="tel:…"> inside for the click-to-call action on mobile.
+  // an <a href="tel:…"> inside for the click-to-call action.
   return (
     <div
       role="button"
@@ -168,75 +173,87 @@ const NotificationRow = ({ deal, variant, onClick }) => {
           onClick?.();
         }
       }}
-      // The colour now lives in a single 3px left stripe (severity); the rest
-      // of the row stays neutral so 24 overdue rows read as 24 distinct rows
-      // instead of a wall of red.
-      className="group relative cursor-pointer w-full text-left flex items-start gap-2 sm:gap-3 pl-3 pr-2 sm:pr-3 py-2 rounded-lg bg-card border border-border overflow-hidden hover:border-primary/40 hover:shadow-[0_6px_18px_-10px_rgba(15,23,42,0.18)] transition-all"
+      // Colour lives in a single left stripe (severity); the rest of the row
+      // stays white so 24 overdue rows read as 24 distinct rows rather than a
+      // wall of red.
+      className="group relative flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-lg border border-border bg-card py-2.5 pl-4 pr-2.5 text-left transition-all hover:border-primary/40 hover:shadow-[0_6px_18px_-10px_rgba(15,23,42,0.18)]"
       title={fullTitle}
     >
       <span
         aria-hidden
-        className={`absolute left-0 top-0 bottom-0 w-1 ${stripeClass}`}
+        className={`absolute bottom-0 left-0 top-0 w-1 ${stripeClass}`}
       />
 
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <div className="text-sm font-medium text-foreground break-words line-clamp-2 sm:line-clamp-none sm:truncate leading-snug">
+      {/* Initials avatar — gives each row an anchor to scan down. */}
+      <span
+        aria-hidden
+        className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 sm:flex"
+      >
+        {getInitials(fullTitle)}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold leading-snug text-foreground">
           {fullTitle}
         </div>
 
-        {/* Meta line 1 — status pill (per-status colour) + project name. */}
-        {(deal.status || projectName) && (
-          <div className="text-xs text-muted-foreground truncate flex items-center gap-1.5">
-            {deal.status && (
-              <span
-                className={`px-1.5 py-px rounded text-[10px] font-semibold uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text}`}
-              >
-                {deal.status}
-              </span>
-            )}
-            {projectName && <span className="truncate">{projectName}</span>}
-          </div>
-        )}
-
-        {/* Meta line 2 — tap-to-call (mobile only) + due date/time in muted. */}
-        {(phone || dueDateTime) && (
-          <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-            {phone && (
-              <a
-                href={`tel:${phone}`}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`Call ${phone}`}
-                title={`Call ${phone}`}
-                className="sm:hidden inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:bg-emerald-200 transition-colors"
-              >
-                <Icon name="Phone" size={14} />
-              </a>
-            )}
-            {dueDateTime && (
-              <span className="inline-flex items-center gap-1">
-                <Icon name="CalendarClock" size={10} />
-                {dueDateTime}
-              </span>
-            )}
-          </div>
-        )}
+        {/* One meta line: status · project · due date */}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          {deal.status && (
+            <span
+              className={`rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text}`}
+            >
+              {deal.status}
+            </span>
+          )}
+          {projectName && (
+            <span className="truncate max-w-[9rem]">{projectName}</span>
+          )}
+          {dueDateTime && (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+              <Icon name="CalendarClock" size={11} />
+              {dueDateTime}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Right rail — relative urgency ("3d late", "in 2h") tinted by severity
-          tier, plus chevron. Vertically centred so it aligns with multi-line
-          content rather than the title alone. */}
-      <div className="flex items-center gap-2 self-center shrink-0">
+      {/* Right rail — urgency, then the two actions that resolve it. */}
+      <div className="flex shrink-0 items-center gap-1.5 self-center">
         <span
-          className={`text-[11px] font-semibold ${urgencyClass} hidden sm:inline-block whitespace-nowrap`}
+          className={`whitespace-nowrap text-[11px] font-semibold ${urgencyClass}`}
           title={dueDateTime}
         >
           {urgencyLabel}
         </span>
-        <Icon
-          name="ChevronRight"
-          size={14}
-          className="text-muted-foreground"
-        />
+
+        {phone && (
+          <>
+            <a
+              href={`tel:${phone}`}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Call ${fullTitle}`}
+              title={`Call ${phone}`}
+              className="grid h-8 w-8 place-items-center rounded-full bg-sky-50 text-sky-600 transition-all active:scale-95 active:bg-sky-100"
+            >
+              <Icon name="Phone" size={14} />
+            </a>
+
+            <a
+              href={`https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(whatsappMessage)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`WhatsApp ${fullTitle}`}
+              title="Send WhatsApp message"
+              className="grid h-8 w-8 place-items-center rounded-full bg-emerald-50 text-emerald-600 transition-all active:scale-95 active:bg-emerald-100"
+            >
+              <Icon name="MessageCircle" size={14} />
+            </a>
+          </>
+        )}
+
+        <Icon name="ChevronRight" size={16} className="text-muted-foreground/60" />
       </div>
     </div>
   );
@@ -314,16 +331,19 @@ const DashboardSummaryAlert = () => {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
-        className="relative bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-2.5 sm:p-4"
+        // A plain white card. The list below carries the colour (one stripe
+        // per row); tinting the container as well made the whole panel read
+        // as one alarming block instead of a scannable list.
+        className="relative rounded-xl border border-border bg-card p-3 shadow-card sm:p-4"
       >
-        {/* Mobile reserves space only for the X (8 = 2rem). Desktop also makes
-            room for the absolute-positioned View pipeline pill (36 = 9rem). */}
-        <div className="flex items-start gap-2 sm:gap-3 pr-9 sm:pr-36">
-          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+        {/* Mobile reserves space only for the X (9 = 2.25rem). Desktop also
+            makes room for the absolute-positioned View overdue pill. */}
+        <div className="flex items-start gap-3 pr-9 sm:pr-44">
+          <div className="hidden h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 sm:flex">
             <Icon name="BellRing" size={20} className="text-primary" />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-semibold text-foreground">
                 Here's what needs you today
               </h3>
@@ -397,7 +417,7 @@ const DashboardSummaryAlert = () => {
             <button
               type="button"
               onClick={() => navigate("/pipeline")}
-              className="sm:hidden mt-3 w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white border border-primary/30 text-primary text-xs font-semibold shadow-sm hover:bg-primary hover:text-white transition-colors"
+              className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-xs font-semibold text-foreground shadow-sm transition-colors active:bg-muted sm:hidden"
               aria-label="Open pipeline"
             >
               <Icon name="Kanban" size={14} />
@@ -414,7 +434,7 @@ const DashboardSummaryAlert = () => {
           <button
             type="button"
             onClick={() => navigate("/pipeline")}
-            className="hidden sm:inline-flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full bg-white border border-primary/30 text-primary text-xs font-semibold shadow-sm hover:bg-primary hover:text-white hover:border-primary hover:shadow-[0_6px_20px_-8px_rgba(99,102,241,0.45)] transition-all"
+            className="hidden items-center gap-1.5 rounded-full border border-border bg-card py-1.5 pl-3 pr-3 text-xs font-semibold text-foreground shadow-sm transition-all hover:border-primary/40 hover:text-primary sm:inline-flex"
             aria-label="Open pipeline"
           >
             <Icon name="Kanban" size={14} />

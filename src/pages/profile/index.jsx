@@ -50,7 +50,7 @@ const Profile = () => {
         isSidebarOpen={isSidebarOpen}
       />
       <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
-       <main className="lg:ml-64 pt-16">
+       <main className="top-bar-offset lg:ml-64">
         <div className="p-4 lg:p-8">
           {/* Page Header */}
           <div className="mb-8">

@@ -18,6 +18,8 @@ import {
   updateLead,
 } from "services/leads.service";
 import ConfirmDeleteModal from "./components/ConfirmDeleteModal";
+import QuickUpdateSheet from "./components/QuickUpdateSheet";
+import { createLeadActivity } from "services/leads.service";
 import StatusChart from "./components/charts/StatusChart";
 import IndustryChart from "./components/charts/IndustryChart";
 import AssignedUserChart from "./components/charts/AssignedUserChart";
@@ -44,6 +46,8 @@ const DealsPage = () => {
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedDeals, setSelectedDeals] = useState([]);
+  // Lead being quick-updated from the list via the bottom sheet (spec 6).
+  const [quickEditDeal, setQuickEditDeal] = useState(null);
 
   // const [currentPage, setCurrentPage] = useState(1);
   // const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -61,6 +65,10 @@ const DealsPage = () => {
   });
   const [mode, setMode] = useState("view");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // The lead a row-level Trash tap is asking about, or null. A phone has a
+  // 44px row target and no undo, so the single delete gets the same
+  // confirmation step as the bulk one (QA 2.4).
+  const [pendingDeleteLead, setPendingDeleteLead] = useState(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   // const canCreateLead = canCreate("Lead");
   // const canEditLead = canEdit("Lead");
@@ -197,7 +205,16 @@ const DealsPage = () => {
     const assignedUser = usersById[lead?.assignedUserId];
     const isAssignedToCurrentTeam = teamUserIds.has(lead?.assignedUserId);
 
-    if (!assignedUser) return lead;
+    // The assignee may be missing from the users lookup (it is one page of
+    // results). Falling straight through to `lead` would drop the team info
+    // the permission check needs, making an editable lead look read-only.
+    // If we know the assignee is on the current user's team, say so.
+    if (!assignedUser) {
+      if (isAssignedToCurrentTeam && !lead?.teamsIds?.length) {
+        return { ...lead, teamsIds: currentTeamIds, teamId: currentTeamIds[0] };
+      }
+      return lead;
+    }
 
     return {
       ...lead,
@@ -304,6 +321,74 @@ const DealsPage = () => {
 
     await updateLead(id, payload);
     queryClient.invalidateQueries(["leads"]);
+  };
+
+  /**
+   * Quick Update sheet save (spec 6). Only the fields the rep actually
+   * touched are sent; the note goes to the lead's stream so it shows up in
+   * the Activity tab rather than overwriting the description.
+   *
+   * Throws on failure so the sheet can stay open and keep the typed note.
+   */
+  const handleQuickUpdate = async ({ id, status: nextStatus, cNextContactAt, note }) => {
+    const record =
+      quickEditDeal?.id === id ? quickEditDeal : leads.find((lead) => lead.id === id);
+
+    if (record && !canEditRecord("Lead", getPermissionRecord(record))) {
+      const error = new Error("You do not have permission to edit this lead");
+      error.code = "FORBIDDEN";
+      throw error;
+    }
+
+    const payload = {};
+    if (nextStatus !== undefined) payload.status = nextStatus;
+    if (cNextContactAt !== undefined) payload.cNextContactAt = cNextContactAt;
+
+    // The fields and the note are two separate writes, so the fields go
+    // first: if the note then fails, the important part is already saved.
+    if (Object.keys(payload).length > 0) {
+      await updateLead(id, payload);
+    }
+
+    let noteFailed = false;
+    if (note) {
+      try {
+        await createLeadActivity({
+          post: note,
+          parentId: id,
+          parentType: "Lead",
+          type: "Post",
+          isInternal: false,
+          attachmentsIds: [],
+        });
+      } catch (error) {
+        // A lost note must not discard a saved status change -- report it
+        // as a partial success instead (spec 6.2).
+        console.error("Quick update: note failed to reach the stream", error);
+        noteFailed = true;
+      }
+    }
+
+    queryClient.invalidateQueries(["leads"]);
+    queryClient.invalidateQueries(["lead-stream", id]);
+
+    return { noteFailed };
+  };
+
+  /**
+   * Row-level Trash tap. Checks permission first -- refusing here means the
+   * user never sees a confirm dialog for something that was going to be
+   * rejected anyway -- then opens the confirmation.
+   */
+  const handleRequestDeleteLead = (id) => {
+    const record = leads.find((lead) => lead.id === id);
+
+    if (record && !canDeleteRecord("Lead", getPermissionRecord(record))) {
+      toast.error("You do not have permission to delete this lead");
+      return;
+    }
+
+    setPendingDeleteLead({ id, name: record?.name || "this lead" });
   };
 
   const handleDeleteLead = async (id) => {
@@ -550,7 +635,7 @@ const DealsPage = () => {
         <Header onMenuToggle={handleMenuToggle} isSidebarOpen={isSidebarOpen} />
         <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
 
-        <main className="lg:ml-64 pt-16">
+        <main className="top-bar-offset lg:ml-64">
           <div className="p-4 lg:p-6">
             {/* Page Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
@@ -627,16 +712,21 @@ const DealsPage = () => {
               </div>
             )}
 
-            {/* Deals Table */}
+            {/* List + pagination share ONE rounded card (spec 8.2). The list
+                region is clipped; the footer rounds its own bottom corners,
+                so dropdown menus in the footer are never cut off. */}
+            <div className="rounded-2xl border border-[rgba(20,20,30,0.08)] bg-card shadow-list-card">
+              <div className="overflow-hidden rounded-t-2xl">
             <DealsTable
               deals={leads}
               selectedDeals={selectedDeals}
               onSelectDeal={handleSelectDeal}
               onSelectAll={handleSelectAll}
               onDealClick={handleDealClick}
+              onQuickEdit={(deal) => setQuickEditDeal(deal)}
               sortConfig={sortConfig}
               onSort={handleSort}
-              onDelete={handleDeleteLead}
+              onDelete={handleRequestDeleteLead}
               isLoading={isLoading}
               page={page}
               setPage={setPage}
@@ -647,18 +737,34 @@ const DealsPage = () => {
                 canDeleteRecord("Lead", getPermissionRecord(deal))
               }
             />
+              </div>
 
-            {/* Pagination */}
-            <TablePagination
-              currentPage={page}
-              totalPages={totalPages}
-              totalItems={total}
-              itemsPerPage={limit}
-              onPageChange={(p) => setPage(p)}
-              onItemsPerPageChange={(val) => {
-                setLimit(val);
-                setPage(1);
-              }}
+              {/* Pagination */}
+              <TablePagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={total}
+                itemsPerPage={limit}
+                onPageChange={(p) => setPage(p)}
+                onItemsPerPageChange={(val) => {
+                  setLimit(val);
+                  setPage(1);
+                }}
+              />
+            </div>
+
+            {/* Quick Update sheet (spec 6) */}
+            <QuickUpdateSheet
+              deal={quickEditDeal}
+              isOpen={Boolean(quickEditDeal)}
+              statusOptions={status}
+              canEdit={
+                quickEditDeal
+                  ? canEditRecord("Lead", getPermissionRecord(quickEditDeal))
+                  : false
+              }
+              onClose={() => setQuickEditDeal(null)}
+              onSave={handleQuickUpdate}
             />
 
             {/* Deal Drawer */}
@@ -676,6 +782,18 @@ const DealsPage = () => {
               onDelete={handleDeleteActivity}
               onBulkUpdate={handleBulkUpdateLeads}
               selectedIds={selectedDeals}
+            />
+
+            <ConfirmDeleteModal
+              open={Boolean(pendingDeleteLead)}
+              title="Delete Lead"
+              description={`Are you sure you want to delete ${pendingDeleteLead?.name || "this lead"}? This action cannot be undone.`}
+              onCancel={() => setPendingDeleteLead(null)}
+              onConfirm={() => {
+                const target = pendingDeleteLead;
+                setPendingDeleteLead(null);
+                if (target) handleDeleteLead(target.id);
+              }}
             />
 
             <ConfirmDeleteModal

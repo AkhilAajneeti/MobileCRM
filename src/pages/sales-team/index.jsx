@@ -15,8 +15,6 @@ import {
   fetchContactById,
   updateContact,
 } from "services/contact.service";
-import { fetchUser } from "services/user.service";
-import { fetchLeads } from "services/leads.service";
 import { useUsers } from "hooks/useUsers";
 import { useLeads } from "hooks/useLeads";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,21 +37,8 @@ const SalesTeam = () => {
     key: "name",
     direction: "asc",
   });
-  // function for fetchUser
   const queryClient = useQueryClient();
-  useEffect(() => {
-    const loadContact = async () => {
-      try {
-        const data = await fetchUser();
-        console.log(data.list);
-      } catch (error) {
-        console.log("failed to fetch data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadContact();
-  }, []);
+
   // useEffect(() => {
   //   if (!isDrawerOpen || !selectedContact?.id || drawerMode !== "view") return;
 
@@ -81,18 +66,7 @@ const SalesTeam = () => {
 
   // operational
 
-  // leads
-  useEffect(() => {
-    const loadContact = async () => {
-      try {
-        const data = await fetchLeads();
-      } catch (error) {
-        console.log("failed to fetch data", error);
-      } finally {
-      }
-    };
-    loadContact();
-  }, []);
+
   // ✅ 1️⃣ Lead Stats (Optimized Grouping)
   const leadStats = useMemo(() => {
     const stats = {};
@@ -398,7 +372,7 @@ const SalesTeam = () => {
     <div className="min-h-screen bg-background">
       <Header onMenuToggle={handleMenuToggle} isSidebarOpen={isSidebarOpen} />
       <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
-      <main className="lg:ml-64 pt-16">
+      <main className="top-bar-offset lg:ml-64">
         <div className="p-6 lg:p-6">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { isOwnRecord, getStoredUser } from "../../../utils/permission.js";
 import Icon from "../../../components/AppIcon";
+import DistributionCell from "./DistributionCell";
 import Button from "../../../components/ui/Button";
 import { Checkbox } from "../../../components/ui/Checkbox";
 
@@ -131,6 +132,10 @@ const DealsTable = ({
         <div className="h-4 w-24 bg-gray-300/60 rounded"></div>
       </td>
 
+      {/* Modified At — the skeleton was one cell short of the 7 columns */}
+      <td className="p-4">
+        <div className="h-4 w-24 bg-gray-300/60 rounded"></div>
+      </td>
 
       {/* Actions */}
       <td className="p-4">
@@ -169,22 +174,32 @@ const DealsTable = ({
                   Assigned User
                 </span>
               </th>
+              {/* Distribution (spec 7.3) — the discoverability answer */}
+              <th className="text-left px-4 py-3">
+                <span className="text-sm font-medium text-foreground">
+                  Distribution
+                </span>
+              </th>
+              {/* Each sortable header passes the SAME key to onSort and to
+                  getSortIcon. Both of these previously sorted by createdAt
+                  while lighting the arrow for closeDate, so the arrow
+                  appeared on a column other than the one clicked. */}
               <th className="text-left px-4 py-3">
                 <button
                   onClick={() => onSort("createdAt")}
                   className="flex items-center space-x-2 text-sm font-medium text-foreground hover:text-primary transition-smooth"
                 >
-                  <span>Create By</span>
-                  {getSortIcon("closeDate")}
+                  <span>Created At</span>
+                  {getSortIcon("createdAt")}
                 </button>
               </th>
               <th className="text-left px-4 py-3">
                 <button
-                  onClick={() => onSort("createdAt")}
+                  onClick={() => onSort("modifiedAt")}
                   className="flex items-center space-x-2 text-sm font-medium text-foreground hover:text-primary transition-smooth"
                 >
                   <span>Modified At</span>
-                  {getSortIcon("closeDate")}
+                  {getSortIcon("modifiedAt")}
                 </button>
               </th>
               <th className="w-24 px-4 py-3">
@@ -199,7 +214,7 @@ const DealsTable = ({
               Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
             ) : !paginatedDeals?.length ? (
               <tr>
-                <td colSpan="6">
+                <td colSpan="7">
                   <div className="flex items-center justify-center h-[200px] text-gray-400 text-sm">
                     No projects available
                   </div>
@@ -235,6 +250,10 @@ const DealsTable = ({
                   >
                     {deal?.assignedUserName}
                   </div>
+                </td>
+
+                <td className="px-4 py-4">
+                  <DistributionCell project={deal} />
                 </td>
 
                 <td className="px-4 py-4">
@@ -317,19 +336,29 @@ const DealsTable = ({
                   </div>
                 )}
 
-                {/* Assigned User */}
-                {deal?.assignedUserName && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                    <Icon name="User" size={12} />
-                    Assigned to{" "}
-                    <span className="truncate">{deal?.assignedUserName}</span>
-                  </div>
-                )}
+                {/* Distribution (spec 7.5). The web mobile card drops this
+                    column entirely — the one thing that makes lead
+                    distribution discoverable vanishes on a phone. Added back
+                    at full size, above the divider, because it is the single
+                    most useful thing on the card. */}
+                <div className="mt-2">
+                  <DistributionCell project={deal} />
+                </div>
 
-                {/* Created At */}
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                  <Icon name="Calendar" size={12} />
-                  Created: {formatDate(deal?.createdAt)}
+                {/* Footer behind a divider, so the card has a head and a foot
+                    rather than four stacked lines. */}
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border/60 pt-3">
+                  {deal?.assignedUserName && (
+                    <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                      <Icon name="User" size={12} className="shrink-0" />
+                      <span className="truncate">{deal.assignedUserName}</span>
+                    </span>
+                  )}
+
+                  <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                    <Icon name="Calendar" size={12} />
+                    {formatDate(deal?.createdAt)}
+                  </span>
                 </div>
               </div>
             </div>

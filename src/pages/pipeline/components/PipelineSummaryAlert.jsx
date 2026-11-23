@@ -45,10 +45,12 @@ const PipelineSummaryAlert = ({ stats = {} }) => {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
-        className="relative bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl p-4"
+        // Kept in step with DashboardSummaryAlert: a white card, with the
+        // colour carried by the counts rather than a wash over everything.
+        className="relative rounded-xl border border-border bg-card p-4 shadow-card"
       >
         <div className="flex items-start gap-3 pr-8">
-          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
             <Icon name="BellRing" size={20} className="text-primary" />
           </div>
           <div>

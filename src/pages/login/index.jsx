@@ -1,10 +1,20 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import { motion } from "framer-motion";
+import BrandPanel from "./components/BrandPanel";
 import LoginHeader from "./components/LoginHeader";
 import LoginForm from "./components/LoginForm";
-import { motion } from "framer-motion";
 
+/**
+ * Sign-in screen.
+ *
+ * Mobile is the primary target: the brand panel shrinks to a compact card so
+ * the username field stays above the fold, and the footer stacks instead of
+ * letting the copyright collide with the "powered by" mark.
+ *
+ * From `lg` it becomes the two-column split — brand panel left, form right.
+ */
 const LoginPage = () => {
   const navigate = useNavigate();
 
@@ -25,116 +35,56 @@ const LoginPage = () => {
           content="Sign in to your Aajneeti Crm account to access your sales pipeline, customer data, and CRM tools."
         />
       </Helmet>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="relative min-h-screen bg-background grid grid-cols-1 lg:grid-cols-2"
-      >
-        {/* Left SIDE - VISUAL */}
-        <div className="hidden lg:flex relative items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f172a] via-[#1e3a8a] to-[#312e81] text-white">
-          <motion.img
-            src="/assets/images/aajneeti-logo.png"
-            alt="crm visual"
-            initial={{ opacity: 0, x: -40, y: 40 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="absolute top-4 left-4 w-50 pointer-events-none rounded"
-          />
-          {/* 🔲 Grid Pattern */}
-          <div className="absolute inset-0 opacity-10 bg-[linear-gradient(#ffffff20_1px,transparent_1px),linear-gradient(90deg,#ffffff20_1px,transparent_1px)] bg-[size:40px_40px]" />
 
-          {/* 🌌 Glow Background */}
-          <div className="absolute top-[-80px] right-[-80px] w-[300px] h-[300px] bg-indigo-500/30 rounded-full blur-3xl" />
-          <div className="absolute bottom-[-100px] left-[-100px] w-[350px] h-[350px] bg-blue-500/20 rounded-full blur-3xl" />
-
-          {/* 🧊 Glass Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="relative z-10 backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-10 max-w-md text-center"
-          >
-            <h1 className="text-4xl font-bold mb-4 tracking-tight">
-              Manage Leads. Track Teams. Scale Faster.
-            </h1>
-            <p className="text-sm text-white/80 leading-relaxed">
-              Build your sales pipeline with AAJneeti CRM. Track leads, automate follow-ups, monitor team performance, and access real-time insights - all from one intelligent dashboard.
-            </p>
-          </motion.div>
-
-          {/* 🚀 Floating Image - Bottom Left */}
-          <motion.img
-            src="/assets/images/Img1.png"
-            alt="crm visual"
-            initial={{ opacity: 0, x: -40, y: 40 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="absolute bottom-40 left-10 w-64 opacity-80 drop-shadow-2xl pointer-events-none rounded"
-          />
-
-          {/* 🌐 Floating Image - Top Right */}
-          <motion.img
-            src="/assets/images/Img2.png"
-            alt="crm visual"
-            initial={{ opacity: 0, x: 40, y: -40 }}
-            animate={{ opacity: 1, x: 0, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
-            className="absolute top-40 right-10 w-64 opacity-80 drop-shadow-2xl pointer-events-none rounded"
-          />
-
-          {/* ✨ Subtle Floating Animation */}
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 6, repeat: Infinity }}
-            className="absolute bottom-10 left-10 w-40 h-40"
-          />
-          {/* 🚀 Rocket - Center Accent */}
-          <motion.img
-            src="/assets/images/rocket.png"
-            alt="rocket"
-            initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0, y: [0, -10, 0] }}
-            transition={{
-              delay: 0.5,
-              duration: 0.8,
-              y: { duration: 4, repeat: Infinity },
-            }}
-            className="absolute z-0 w-28 opacity-90 drop-shadow-[0_10px_30px_rgba(0,0,0,0.4)]"
-            style={{
-              bottom: "10%",
-              right: "10%",
-              transform: "translateX(-50%)",
-            }}
-          />
+      <div className="min-h-dvh bg-background lg:grid lg:min-h-screen lg:grid-cols-[1.15fr_minmax(440px,0.85fr)]">
+        {/* ---------------- Brand panel ---------------- */}
+        {/* Phone: a rounded card that sits above the form.
+            Desktop: the full-bleed left column. */}
+        <div className="px-4 pt-safe-gap lg:px-0 lg:pt-0">
+          <div className="overflow-hidden rounded-3xl lg:h-full lg:rounded-none">
+            <BrandPanel />
+          </div>
         </div>
 
-        {/* Right LOGIN */}
+        {/* ---------------- Form panel ---------------- */}
         <motion.div
-          initial={{ x: -80, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-          className="flex items-center justify-center p-6 lg:p-12"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
+          // Bottom padding is at least 2rem, growing to clear the home bar.
+          // `max()` rather than a plain `pb-safe`, which would otherwise
+          // shrink the gap to 1rem on devices with no inset.
+          className="flex flex-col px-5 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-8 lg:justify-center lg:px-12 lg:pt-12 xl:px-16"
         >
-          <div className="w-full max-w-md">
-            {/* Logo / Branding */}
+          <div className="mx-auto w-full max-w-md lg:mx-0">
+            <LoginHeader />
+            <LoginForm />
+          </div>
 
-            {/* Card */}
-            <div className="relative rounded-2xl p-[1.5px] bg-gradient-to-r from-indigo-500 via-purple-500 to-blue-500 animate-border shadow-[0_0_25px_rgba(99,102,241,0.4)]">
-              <div className="bg-card rounded-2xl p-8 space-y-6">
-                <LoginHeader />
-                <LoginForm />
+          {/* Footer — stacked on mobile so nothing overlaps, split on desktop */}
+          <div className="mx-auto mt-10 w-full max-w-md lg:mx-0 lg:mt-16">
+            <div className="border-t border-border pt-6">
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-center text-xs text-muted-foreground sm:text-left">
+                  © {new Date().getFullYear()} AAJneeti Connect Limited. All
+                  rights reserved.
+                </p>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">
+                    Powered by
+                  </span>
+                  <img
+                    src="/assets/images/aajneeti-favicon.png"
+                    alt="AAJneeti"
+                    className="h-5 w-auto object-contain opacity-70"
+                  />
+                </div>
               </div>
             </div>
-
-            {/* Footer */}
-            <p className="mt-6 text-xs text-center text-muted-foreground">
-              © {new Date().getFullYear()} Aajneeti Connect Ltd. All rights
-              reserved.
-            </p>
           </div>
         </motion.div>
-      </motion.div>
+      </div>
     </>
   );
 };

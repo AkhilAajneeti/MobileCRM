@@ -189,7 +189,7 @@ const EmailsPage = () => {
     <div className="min-h-screen bg-background">
       <Header onMenuToggle={handleSidebarToggle} isSidebarOpen={isSidebarOpen} />
       <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
-      <main className="lg:ml-64 pt-16">
+      <main className="top-bar-offset lg:ml-64">
         <div className="h-[calc(100vh-4rem)] flex flex-col">
           {/* Page Header */}
           <div className="bg-background border-b border-border p-6">

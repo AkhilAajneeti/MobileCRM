@@ -235,7 +235,7 @@ const Activities = () => {
     <div className="min-h-screen bg-background">
       <Header onMenuToggle={handleMenuToggle} isSidebarOpen={isSidebarOpen} />
       <Sidebar isOpen={isSidebarOpen} onClose={handleSidebarClose} />
-      <main className="lg:ml-64 pt-16">
+      <main className="top-bar-offset lg:ml-64">
         <div className="p-6">
           {/* Page Header */}
           <div className="flex items-center justify-between mb-6">

@@ -149,6 +149,30 @@ export const canEditField = (entity, field) => {
   return isAllowedValue(fieldAcl?.edit);
 };
 
+/**
+ * True when the signed-in user holds the named role.
+ *
+ * Roles are distinct from the EspoCRM user `type`: `type` is one of
+ * admin/regular/portal, while names like "Owner" or "Manager" live in
+ * `roles` (and `role`, which is just the first of them). Checking `type`
+ * for a role name therefore never matches — which is how an Owner ended up
+ * unable to see an admin-gated nav item.
+ */
+export const hasRole = (name) => {
+  const user = getStoredUser();
+  const target = String(name || "").toLowerCase();
+  if (!target) return false;
+
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  if (roles.some((role) => String(role).toLowerCase() === target)) return true;
+
+  return String(user?.role || "").toLowerCase() === target;
+};
+
+/** Admin by type, or an Owner by role. */
+export const isAdminOrOwner = () =>
+  getStoredUser()?.type?.toLowerCase() === "admin" || hasRole("Owner");
+
 export const isAdminOrManager = () => {
   const user = getStoredUser();
   const role = user?.role?.toLowerCase();

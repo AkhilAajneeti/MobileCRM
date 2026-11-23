@@ -64,6 +64,25 @@ export const fetchLeadsCount = async (filters = []) => {
 
   const query = filters
     .map((f, i) => {
+      // Nested OR group -- `{ type: "or", value: [ {type,attribute,value}, ... ] }`.
+      // Serialised as whereGroup[i][value][j][...] for each sub-clause. Without
+      // this branch an `or` condition stringifies its array of objects into the
+      // single `value` param and Espo returns an unscoped count, which looks
+      // exactly like a correct answer.
+      if (f.type === "or" && Array.isArray(f.value)) {
+        let q = `whereGroup[${i}][type]=or`;
+        f.value.forEach((sub, j) => {
+          q += `&whereGroup[${i}][value][${j}][type]=${sub.type}`;
+          if (sub.attribute) {
+            q += `&whereGroup[${i}][value][${j}][attribute]=${sub.attribute}`;
+          }
+          if (sub.value != null && sub.value !== "") {
+            q += `&whereGroup[${i}][value][${j}][value]=${encodeURIComponent(sub.value)}`;
+          }
+        });
+        return q;
+      }
+
       let q = `whereGroup[${i}][type]=${f.type}&whereGroup[${i}][attribute]=${f.attribute}`;
 
       // ✅ value handling
@@ -121,7 +140,7 @@ export const fetchLeadsCount = async (filters = []) => {
   return total;
 };
 
-export const fetchLeads = async ({ limit = 100, page = 1 }) => {
+export const fetchLeads = async ({ limit = 100, page = 1 } = {}) => {
   const token = localStorage.getItem("auth_token");
 
   const offset = (page - 1) * limit; // ✅ FIX
@@ -376,8 +395,11 @@ export const createLead = async (payload) => {
   });
 
   if (!res.ok) {
-    console.error("API ERROR:", text);
-    throw new Error("Lead is not created", text);
+    // `text` was referenced without ever being read, so a rejected create
+    // threw a ReferenceError here and the real gateway message was lost.
+    const text = await res.text().catch(() => "");
+    console.error("API ERROR:", res.status, text);
+    throw new Error(`Lead is not created: ${text || res.status}`);
   }
   // EspoCRM returns array
   return await res.json();
@@ -402,6 +424,9 @@ export const updateLead = async (id, payload) => {
 
   console.log("response from contact.service.js", res);
   if (!res.ok) {
+    // `text` was never read here, so a rejected update threw a ReferenceError
+    // and the gateway's reason was lost -- same bug as in createLead.
+    const text = await res.text().catch(() => "");
     throw new Error(text || "Lead update failed");
   }
 
@@ -510,8 +535,9 @@ export const createLeadActivity = async (payload) => {
   });
 
   if (!res.ok) {
-    console.error("API ERROR:", text);
-    throw new Error("Activity is not created", text);
+    const text = await res.text().catch(() => "");
+    console.error("API ERROR:", res.status, text);
+    throw new Error(`Activity is not created: ${text || res.status}`);
   }
   // EspoCRM returns array
   return await res.json();

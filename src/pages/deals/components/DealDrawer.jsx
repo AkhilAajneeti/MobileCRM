@@ -5,6 +5,19 @@ import Select from "../../../components/ui/Select";
 import Input from "components/ui/Input";
 import toast from "react-hot-toast";
 import Avatar from "react-avatar";
+import InitialsAvatar from "../../../components/ui/InitialsAvatar";
+import { StatusBadge, SourceBadge } from "../../../components/ui/StatusBadge";
+import {
+  SectionCard,
+  FieldRow,
+  Empty,
+} from "../../../components/ui/SectionCard";
+import StatusChipGrid from "../../../components/ui/StatusChipGrid";
+import {
+  getFollowUpTone,
+  getStageColor,
+  LEAD_STATUS_OPTIONS,
+} from "../../../utils/statusTokens";
 
 import { createLeadActivity, updateStream } from "services/leads.service";
 import { useTeams } from "hooks/useTeams";
@@ -34,6 +47,14 @@ const DealDrawer = ({
 }) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditing, setIsEditing] = useState(false);
+  // Inline status editor in the Overview (spec 6.3 / 7.5).
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [draftStatus, setDraftStatus] = useState(null);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
+  // `deal` is a snapshot held by the list page, so invalidating the query
+  // does not refresh it. Hold the just-saved status locally so the badge
+  // and the wash update in place rather than showing the old value.
+  const [savedStatus, setSavedStatus] = useState(null);
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [meetingDrawerOpen, setMeetingDrawerOpen] = useState(false);
   const [showActivityForm, setActivityForm] = useState(false);
@@ -235,27 +256,43 @@ const DealDrawer = ({
     });
   };
 
-  const getStageColor = (stage) => {
-    const colors = {
-      New: "bg-blue-100 text-blue-800",
-      Interested: "bg-sky-100 text-sky-800",
-      "Follow up": "bg-indigo-100 text-indigo-800",
-      Converted: "bg-green-100 text-green-800",
-      "Not interested": "bg-orange-100 text-orange-800",
-      Broker: "bg-purple-100 text-purple-800",
-      "Call Not Picked": "bg-red-100 text-red-800",
-      Invalid: "bg-gray-100 text-gray-700",
-    };
-    return colors?.[stage] || "bg-gray-100 text-gray-800";
-  };
+  // Status colours come from the shared token module so the detail view,
+  // the list card and the charts can never drift apart.
 
   const tabs = [
     { id: "overview", label: "Overview", icon: "Eye" },
     { id: "AssignedUsers", label: "Assigned User", icon: "Users" },
-    { id: "Stream", label: "Stream", icon: "Calendar" },
+    { id: "Stream", label: "Activity", icon: "Calendar" },
     { id: "Task", label: "Task", icon: "ListChecks" },
     { id: "Meeting", label: "Meeting", icon: "Projector" },
   ];
+
+  // Never carry a half-finished inline status edit across leads or reopens.
+  useEffect(() => {
+    setIsEditingStatus(false);
+    setDraftStatus(null);
+    setIsSavingStatus(false);
+    setSavedStatus(null);
+  }, [deal?.id, isOpen]);
+
+  // Full-screen on mobile, so it must close on hardware back / Escape and
+  // must not let the page behind it scroll.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose?.();
+    };
+    const previousOverflow = document.body.style.overflow;
+
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, onClose]);
 
   const getActivityIcon = (type) => {
     switch (type) {
@@ -476,27 +513,9 @@ const DealDrawer = ({
     { value: "ACL", label: "Aajneeti" },
     { value: "Other", label: "Other" },
   ];
-  const statusOptions = [
-    { value: "Broker", label: "Broker" },
-    { value: "Call Later", label: "Call Later" },
-    { value: "Call Not Connecting", label: "Call Not Connecting" },
-    { value: "Call Not Picked", label: "Call Not Picked" },
-    { value: "Dead", label: "Dead" },
-    { value: "Fake Lead", label: "Fake Lead" },
-    { value: "Follow up", label: "Follow up" },
-    { value: "Interested", label: "Interested" },
-    { value: "Invalid Number", label: "Invalid Number" },
-    { value: "Irrelevant Lead", label: "Irrelevant Lead" },
-    { value: "Low Budget", label: "Low Budget" },
-    { value: "Low Interest", label: "Low Interest" },
-    { value: "New", label: "New" },
-    { value: "Not Interested", label: "Not Interested" },
-    { value: "Other Location", label: "Other Location" },
-    { value: "Purchased", label: "Purchased" },
-    { value: "Site Visit Done", label: "Site Visit Done" },
-    { value: "Site Visit Scheduled", label: "Site Visit Scheduled" },
-    { value: "Switch Off", label: "Switch Off" },
-  ];
+  // Sourced from statusTokens.js so the drawer and the filter panel can
+  // never drift apart again (QA 2.1).
+  const statusOptions = LEAD_STATUS_OPTIONS;
 
 
   const handleSelectChange = (name, value) => {
@@ -567,6 +586,36 @@ const DealDrawer = ({
   const leadData = leadsDetails || deal;
   const canEditDeal = (deal) =>
     canEditRecord("Lead", getPermissionRecord({ ...deal, ...leadsDetails }));
+
+  /**
+   * Inline status save (spec 6.3). The other entry point to the same
+   * interaction as the Quick Update sheet, so it uses the same chip grid --
+   * only the surrounding chrome differs.
+   */
+  const handleInlineStatusSave = async () => {
+    if (!draftStatus || draftStatus === deal?.status) {
+      setIsEditingStatus(false);
+      return;
+    }
+
+    if (!canEditDeal(deal)) {
+      toast.error("You do not have permission to edit this lead");
+      return;
+    }
+
+    setIsSavingStatus(true);
+    try {
+      await onUpdate(deal.id, { status: draftStatus });
+      toast.success("Lead updated");
+      setSavedStatus(draftStatus);
+      setIsEditingStatus(false);
+    } catch (error) {
+      console.error("Inline status update failed", error);
+      toast.error("Couldn't update lead");
+    } finally {
+      setIsSavingStatus(false);
+    }
+  };
   return (
     <>
       {/* Backdrop */}
@@ -581,28 +630,46 @@ const DealDrawer = ({
           ${isOpen ? "translate-x-0" : "translate-x-full"}
         `}
       >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <div className="flex items-center space-x-3">
-              <h2 className="text-xl font-semibold text-foreground">
-                {mode === "mass-update"
-                  ? `Mass Update (${selectedIds.length}) Leads`
-                  : mode === "add"
-                    ? "Add Lead"
-                    : isEditing
-                      ? "Edit Lead"
-                      : deal?.name}
-              </h2>
-              <span
-                className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStageColor(
-                  deal?.status,
-                )}`}
-              >
-                {mode !== "view" && deal && <span>{deal.status}</span>}
-              </span>
+        <div className="flex flex-col h-full pt-safe">
+          {/* Hero header (spec 7.1) */}
+          <div className="flex items-start justify-between gap-3 p-4 border-b border-border bg-gradient-to-br from-slate-50/60 to-transparent">
+            <div className="flex min-w-0 items-start gap-3">
+              {deal && !isMassUpdate && mode !== "add" && (
+                <InitialsAvatar
+                  name={deal?.name}
+                  size={40}
+                  className="sm:!h-14 sm:!w-14 sm:text-base"
+                />
+              )}
+
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold capitalize text-foreground sm:text-xl">
+                  {mode === "mass-update"
+                    ? `Mass Update (${selectedIds.length}) Leads`
+                    : mode === "add"
+                      ? "Add Lead"
+                      : isEditing
+                        ? "Edit Lead"
+                        : deal?.name}
+                </h2>
+
+                {/* Chip row */}
+                {deal && !isMassUpdate && mode !== "add" && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <StatusBadge status={savedStatus ?? deal?.status} size="pill" />
+                    <SourceBadge lead={deal} />
+                    {deal?.assignedUserName && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white py-0.5 pl-0.5 pr-2 text-xs text-slate-700">
+                        <InitialsAvatar name={deal.assignedUserName} size={16} />
+                        <span className="capitalize">{deal.assignedUserName}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
+
+            <div className="flex shrink-0 items-center gap-2">
               {mode == "view" && canEditDeal(deal) && (
                 <Button
                   variant="outline"
@@ -617,11 +684,80 @@ const DealDrawer = ({
                 </Button>
               )}
 
-              <Button variant="ghost" size="icon" onClick={onClose}>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
                 <Icon name="X" size={20} />
               </Button>
             </div>
           </div>
+
+          {/* Quick actions strip (spec 7.2) */}
+          {deal && !isMassUpdate && mode !== "add" && !isEditing && (
+            <div className="border-b border-border">
+              <div className="flex flex-wrap gap-2 px-4 py-3 sm:px-6">
+                <a
+                  href={deal?.phoneNumber ? `tel:${deal.phoneNumber}` : undefined}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium ${
+                    deal?.phoneNumber
+                      ? "border border-sky-200 bg-sky-50 text-sky-700 active:scale-95 transition-transform"
+                      : "pointer-events-none border border-slate-200 bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  <Icon name="Phone" size={14} />
+                  Phone
+                </a>
+
+                <button
+                  type="button"
+                  disabled={!deal?.phoneNumber}
+                  onClick={() => {
+                    const message =
+                      `Hello *${deal?.name || "Customer"}*,\n` +
+                      `Thank you for contacting us for your lead generation requirements.\n\n` +
+                      `I'm *${deal?.assignedUserName || "AAJneeti Team"}* from *AAJneeti Advertising*.`;
+                    window.open(
+                      `https://api.whatsapp.com/send/?phone=${deal?.phoneNumber}&text=${encodeURIComponent(message)}`,
+                      "_blank"
+                    );
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium ${
+                    deal?.phoneNumber
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700 active:scale-95 transition-transform"
+                      : "pointer-events-none border border-slate-200 bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  <Icon name="MessageCircle" size={14} />
+                  Send Template
+                </button>
+
+                <a
+                  href={deal?.emailAddress ? `mailto:${deal.emailAddress}` : undefined}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium ${
+                    deal?.emailAddress
+                      ? "border border-indigo-200 bg-indigo-50 text-indigo-700 active:scale-95 transition-transform"
+                      : "pointer-events-none border border-slate-200 bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  <Icon name="Mail" size={14} />
+                  Email
+                </a>
+              </div>
+
+              {/* Next-contact tone strip (spec 7.3) -- the most actionable
+                  line on the screen, so it is never buried. */}
+              {(() => {
+                const tone = getFollowUpTone(deal?.cNextContactAt);
+                return (
+                  <div
+                    className={`flex items-center gap-2 border-t px-4 py-2.5 text-sm sm:px-6 ${tone.classes}`}
+                  >
+                    <Icon name={tone.icon} size={14} className="shrink-0" />
+                    <span className="font-semibold">Next contact:</span>
+                    <span className="truncate">{tone.label}</span>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto">
             {showForm && !isMassUpdate && (
               <div className="p-6">
@@ -983,190 +1119,194 @@ const DealDrawer = ({
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
                   {activeTab === "overview" && (
-                    <div className="space-y-6">
-                      {/* ================= Overview ================= */}
-                      <div className="border border-border rounded-xl p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Name */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Name
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.name || "None"}
-                            </p>
-                          </div>
+                    <div className="space-y-5">
+                      {/* ================= Contact ================= */}
+                      <SectionCard icon="User2" title="Contact">
+                        <FieldRow icon="User2" tone="indigo" label="Name">
+                          <p className="text-sm font-medium capitalize text-foreground">
+                            {deal?.name || <Empty />}
+                          </p>
+                        </FieldRow>
 
-                          {/* Phone */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Phone
-                            </p>
-                            {deal?.phoneNumber ? (
-                              <a
-                                href={`tel:${deal.phoneNumber}`}
-                                className="text-primary hover:underline"
-                              >
-                                {deal.phoneNumber}
-                              </a>
+                        <FieldRow icon="Phone" tone="sky" label="Phone">
+                          {deal?.phoneNumber ? (
+                            <a
+                              href={`tel:${deal.phoneNumber}`}
+                              className="text-sm font-medium text-primary underline-offset-4 active:underline"
+                            >
+                              {deal.phoneNumber}
+                            </a>
+                          ) : (
+                            <Empty />
+                          )}
+                        </FieldRow>
+
+                        <FieldRow icon="Mail" tone="blue" label="Email">
+                          {deal?.emailAddress ? (
+                            <a
+                              href={`mailto:${deal.emailAddress}`}
+                              className="break-all text-sm font-medium text-primary underline-offset-4 active:underline"
+                            >
+                              {deal.emailAddress}
+                            </a>
+                          ) : (
+                            <Empty />
+                          )}
+                        </FieldRow>
+
+                        <FieldRow icon="MessageCircle" tone="emerald" label="WhatsApp">
+                          {deal?.phoneNumber ? (
+                            <a
+                              href={`https://api.whatsapp.com/send/?phone=${deal.phoneNumber.replace(
+                                /\D/g,
+                                ""
+                              )}&text=${encodeURIComponent(
+                                `Hello *${deal?.name || "Customer"}*,\n\nThank you for contacting us for your lead generation requirements.\nI'm *${deal?.assignedUserName}* Let me know when you're available so that we can discuss this in more detail.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 text-sm font-medium text-green-600 transition-colors active:underline"
+                            >
+                              <img
+                                src="/assets/whatsapp-logo.png"
+                                alt=""
+                                className="h-4 w-4 object-contain"
+                              />
+                              <span>{deal.phoneNumber}</span>
+                            </a>
+                          ) : (
+                            <Empty />
+                          )}
+                        </FieldRow>
+
+                        <FieldRow icon="Building2" tone="slate" label="City">
+                          <p className="text-sm font-medium text-foreground">
+                            {deal?.addressCity || <Empty />}
+                          </p>
+                        </FieldRow>
+                      </SectionCard>
+
+                      {/* ================= Interest ================= */}
+                      <SectionCard icon="Briefcase" title="Interest">
+                        <FieldRow icon="Building2" tone="violet" label="Project Name">
+                          <p className="text-sm font-medium text-foreground">
+                            {deal?.cProject || <Empty />}
+                          </p>
+                        </FieldRow>
+
+                        <FieldRow icon="Target" tone="rose" label="Preference">
+                          <p className="text-sm font-medium text-foreground">
+                            {deal?.cPreference || <Empty />}
+                          </p>
+                        </FieldRow>
+
+                        <FieldRow icon="CircleDot" tone="teal" label="Status">
+                          {isEditingStatus ? (
+                            <div className="space-y-3">
+                              <StatusChipGrid
+                                value={draftStatus ?? savedStatus ?? deal?.status}
+                                onChange={setDraftStatus}
+                                options={statusOptions.map((o) => o.value)}
+                              />
+
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  disabled={isSavingStatus}
+                                  onClick={() => {
+                                    setIsEditingStatus(false);
+                                    setDraftStatus(null);
+                                  }}
+                                  className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground"
+                                >
+                                  Cancel
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={isSavingStatus}
+                                  onClick={handleInlineStatusSave}
+                                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-sm disabled:opacity-60"
+                                >
+                                  <Icon
+                                    name={isSavingStatus ? "Loader" : "Check"}
+                                    size={16}
+                                    className={isSavingStatus ? "animate-spin" : ""}
+                                  />
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <StatusBadge
+                                status={savedStatus ?? deal?.status}
+                                size="pill"
+                              />
+
+                              {canEditDeal(deal) && (
+                                <button
+                                  type="button"
+                                  aria-label="Edit status"
+                                  onClick={() => {
+                                    setDraftStatus(savedStatus ?? deal?.status ?? null);
+                                    setIsEditingStatus(true);
+                                  }}
+                                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border/70 bg-card text-muted-foreground transition-colors active:border-primary/40 active:bg-muted active:text-primary"
+                                >
+                                  <Icon name="Pencil" size={12} />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </FieldRow>
+
+                        <FieldRow icon="Tag" tone="amber" label="Source">
+                          <SourceBadge lead={deal} />
+                        </FieldRow>
+                      </SectionCard>
+
+                      {/* ================= Timeline ================= */}
+                      <SectionCard icon="Calendar" title="Timeline">
+                        <FieldRow icon="Calendar" tone="orange" label="Next Contact">
+                          <p className="text-sm font-medium text-foreground tabular-nums">
+                            {deal?.cNextContactAt ? (
+                              formatDateTime(deal.cNextContactAt)
                             ) : (
-                              <p className="text-foreground">None</p>
+                              <Empty />
                             )}
-                          </div>
+                          </p>
+                        </FieldRow>
 
-                          {/* Email */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Email
-                            </p>
-                            {deal?.emailAddress ? (
-                              <a
-                                href={`mailto:${deal.emailAddress}`}
-                                className="text-primary hover:underline break-all"
-                              >
-                                {deal.emailAddress}
-                              </a>
+                        <FieldRow icon="CalendarCheck" tone="cyan" label="Site Visit">
+                          <p className="text-sm font-medium text-foreground tabular-nums">
+                            {deal?.cSiteVisitAt ? (
+                              formatDateTime(deal.cSiteVisitAt)
                             ) : (
-                              <p className="text-foreground">None</p>
+                              <Empty />
                             )}
-                          </div>
+                          </p>
+                        </FieldRow>
 
-                          {/* WhatsApp */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Whatsapp
-                            </p>
-                            {deal?.phoneNumber ? (
-                              <a
-                                href={`https://api.whatsapp.com/send/?phone=${deal.phoneNumber.replace(
-                                  /\D/g,
-                                  ""
-                                )}&text=${encodeURIComponent(
-                                  `Hello *${deal?.name || "Customer"}*,
-
-Thank you for contacting us for your lead generation requirements.
-I'm *${deal?.assignedUserName }* Let me know when you're available so that we can discuss this in more detail.`
-                                )}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 hover:underline transition-colors"
-                              >
-                                <img
-                                  src="/assets/whatsapp-logo.png"
-                                  alt="WhatsApp"
-                                  className="w-4 h-4 object-contain"
-                                />
-
-                                <span>{deal.phoneNumber}</span>
-                              </a>
+                        <FieldRow icon="Clock" tone="pink" label="Lead Received At">
+                          <p className="text-sm font-medium text-foreground tabular-nums">
+                            {deal?.cLeatReceivedAt ? (
+                              formatDateTime(deal.cLeatReceivedAt)
                             ) : (
-                              <p className="text-foreground">None</p>
+                              <Empty />
                             )}
-                          </div>
+                          </p>
+                        </FieldRow>
+                      </SectionCard>
 
-                          {/* City */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              City
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.addressCity || "None"}
-                            </p>
-                          </div>
-
-                          {/* Next Contact */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Next Contact
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.cNextContactAt
-                                ? formatDateTime(deal.cNextContactAt)
-                                : "None"}
-                            </p>
-                          </div>
-
-                          {/* Project Name */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Project Name
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.cProject || "None"}
-                            </p>
-                          </div>
-
-                          {/* Preference */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Preference
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.cPreference || "None"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* ================= Details ================= */}
-                      <div className="border border-border rounded-xl p-6">
-                        <h3 className="text-base font-semibold text-foreground mb-6">
-                          Details
-                        </h3>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          {/* Status */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Status
-                            </p>
-                            <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
-                              {deal?.status || "None"}
-                            </span>
-                          </div>
-
-                          {/* Source */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Source
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.source || "None"}
-                            </p>
-                          </div>
-                          {/* Source */}
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Site Visit
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.cSiteVisitAt
-                                ? formatDateTime(deal.cSiteVisitAt)
-                                : "None"}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Lead Received At
-                            </p>
-                            <p className="text-foreground font-medium">
-                              {deal?.cLeatReceivedAt
-                                ? formatDateTime(deal.cLeatReceivedAt)
-                                : "None"}
-                            </p>
-                          </div>
-
-                          {/* Description */}
-                          <div className="md:col-span-2">
-                            <p className="text-sm text-muted-foreground">
-                              Description
-                            </p>
-                            <p className="text-foreground leading-relaxed mt-1">
-                              {deal?.description || "None"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                      {/* ================= Notes ================= */}
+                      <SectionCard icon="MessageSquare" title="Notes" singleColumn>
+                        <FieldRow icon="MessageSquare" tone="slate" label="Description">
+                          <p className="text-sm leading-relaxed text-foreground">
+                            {deal?.description || <Empty />}
+                          </p>
+                        </FieldRow>
+                      </SectionCard>
                     </div>
                   )}
 

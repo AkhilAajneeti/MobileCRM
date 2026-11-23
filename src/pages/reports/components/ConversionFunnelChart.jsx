@@ -1,11 +1,13 @@
 import React, { memo, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
+  BarChart,
+  Bar,
+  Cell,
+  LabelList,
+  CartesianGrid,
+  XAxis,
+  YAxis,
   Tooltip,
   ResponsiveContainer,
   LineChart,
@@ -101,25 +103,8 @@ const FunnelTooltip = ({ active, payload }) => {
   );
 };
 
-// Radar vertex dot — colored per pipeline stage (uses the stage's `to` color
-// that each funnel row already carries from FUNNEL_STAGES).
-const renderRadarDot = (props) => {
-  const { cx, cy, payload } = props || {};
-  if (cx == null || cy == null) return null;
-  return (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={4}
-      fill={payload?.to || "#8B5CF6"}
-      stroke="#ffffff"
-      strokeWidth={2}
-    />
-  );
-};
-
 // ---------------------------------------------------------------------------
-// KPI strip above the radar
+// KPI strip above the funnel
 // ---------------------------------------------------------------------------
 
 const KpiTile = ({ icon, iconColor, label, value, accent }) => (
@@ -300,11 +285,18 @@ const EmptyState = ({ monthLabel }) => (
 
 const Skeleton = () => (
   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    {/* Circular placeholder — mirrors the radar shape */}
-    <div className="flex items-center justify-center py-6 animate-pulse">
-      <div className="w-52 h-52 rounded-full bg-slate-200 flex items-center justify-center">
-        <div className="w-32 h-32 rounded-full bg-slate-100" />
-      </div>
+    {/* Tapering bars, so the silhouette reads as a funnel arriving rather
+        than as something broken (spec 7.8). */}
+    <div className="space-y-3 py-4 animate-pulse">
+      {[100, 86, 68, 52, 38, 24, 14].map((width, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <div className="h-3 w-24 shrink-0 rounded bg-slate-200" />
+          <div
+            className="h-5 rounded-r bg-slate-200"
+            style={{ width: `${width}%` }}
+          />
+        </div>
+      ))}
     </div>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-pulse">
       {[1, 2, 3, 4].map((_, i) => (
@@ -370,8 +362,10 @@ const ConversionFunnelChart = ({ filters = {}, enabled = true }) => {
 
   const { highestDropOff, bestConversion, overallConversion, totalLeads } = funnelStats;
 
-  // Radar data — adds a shortened axis label so long stage names ("Site Visit
-  // Scheduled") don't overflow the polar axis. Full label stays for the tooltip.
+  // Adds a shortened axis label so long stage names ("Site Visit Scheduled")
+  // fit the 112px label gutter. The spec is explicit that labels should be
+  // shortened rather than the gutter widened, or the bars lose their scale.
+  // The full label stays on each row for the tooltip.
   const radarData = useMemo(
     () =>
       (funnel || []).map((f) => ({
@@ -381,39 +375,6 @@ const ConversionFunnelChart = ({ filters = {}, enabled = true }) => {
     [funnel],
   );
 
-  // Polar axis tick — stage name with its lead count underneath, so the radar
-  // surfaces the same numbers the funnel used to print inside each block.
-  const renderAngleTick = ({ x, y, cx, cy, payload }) => {
-    const row = radarData.find((r) => r.shortLabel === payload.value);
-    const dx = x - cx;
-    const anchor = Math.abs(dx) < 12 ? "middle" : dx > 0 ? "start" : "end";
-    return (
-      <g>
-        <text
-          x={x}
-          y={y}
-          textAnchor={anchor}
-          dominantBaseline="middle"
-          fontSize={11}
-          fontWeight={600}
-          fill="#0F172A"
-        >
-          {payload.value}
-        </text>
-        <text
-          x={x}
-          y={y + 13}
-          textAnchor={anchor}
-          dominantBaseline="middle"
-          fontSize={10}
-          fontWeight={600}
-          fill="#8B5CF6"
-        >
-          {row ? `${row.count} leads` : ""}
-        </text>
-      </g>
-    );
-  };
 
   return (
     <motion.div
@@ -511,51 +472,62 @@ const ConversionFunnelChart = ({ filters = {}, enabled = true }) => {
               />
             </div>
 
+            {/* A horizontal bar chart reads far better than a radar at phone
+                width, and the count sits at the end of each bar so the
+                number is legible without a tooltip. */}
             <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart
+                <BarChart
                   data={radarData}
-                  outerRadius="68%"
-                  margin={{ top: 18, right: 28, bottom: 18, left: 28 }}
+                  layout="vertical"
+                  margin={{ top: 4, right: 52, bottom: 4, left: 4 }}
+                  barCategoryGap={10}
                 >
-                  <defs>
-                    <linearGradient
-                      id="fnl-radar-fill"
-                      x1="0"
-                      y1="0"
-                      x2="1"
-                      y2="1"
-                    >
-                      <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.55} />
-                      <stop offset="100%" stopColor="#EC4899" stopOpacity={0.3} />
-                    </linearGradient>
-                  </defs>
-                  <PolarGrid stroke="#E2E8F0" />
-                  <PolarAngleAxis
-                    dataKey="shortLabel"
-                    tick={renderAngleTick}
+                  {/* Grid lines only along the measured axis: a horizontal
+                      bar is read against the x scale, so horizontal rules
+                      would cross every bar for nothing. */}
+                  <CartesianGrid
+                    horizontal={false}
+                    stroke="#E2E8F0"
+                    strokeDasharray="3 3"
                   />
-                  <PolarRadiusAxis
-                    angle={90}
+                  <XAxis
+                    type="number"
                     tick={{ fontSize: 10, fill: "#94A3B8" }}
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
                   />
-                  <Radar
-                    name="Leads"
-                    dataKey="count"
-                    stroke="#7C3AED"
-                    strokeWidth={2}
-                    fill="url(#fnl-radar-fill)"
-                    fillOpacity={1}
-                    dot={renderRadarDot}
-                    isAnimationActive
-                    animationDuration={800}
-                    animationEasing="ease-out"
+                  <YAxis
+                    type="category"
+                    dataKey="shortLabel"
+                    width={112}
+                    tick={{ fontSize: 11, fill: "#0F172A", fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={false}
                   />
-                  <Tooltip content={<FunnelTooltip />} />
-                </RadarChart>
+                  <Tooltip
+                    content={<FunnelTooltip />}
+                    cursor={{ fill: "rgba(15,23,42,0.04)" }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    radius={[0, 4, 4, 0]}
+                    isAnimationActive
+                    animationDuration={700}
+                    animationEasing="ease-out"
+                  >
+                    {radarData.map((row) => (
+                      <Cell key={row.shortLabel} fill={row.to} />
+                    ))}
+                    <LabelList
+                      dataKey="count"
+                      position="right"
+                      offset={8}
+                      style={{ fontSize: 11, fontWeight: 700, fill: "#334155" }}
+                    />
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
 
