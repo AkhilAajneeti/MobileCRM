@@ -1,5 +1,5 @@
 {
-  "appId": "crm.aajneeti.com",
+  "appId": "crm.aajneeti.social",
   "appName": "AajneetiCRM",
   "webDir": "build",
   "plugins": {
@@ -8,4 +8,3 @@
     }
   }
 }
-                    

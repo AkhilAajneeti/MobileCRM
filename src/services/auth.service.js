@@ -12,7 +12,6 @@
 import {
   GATEWAY,
   GatewayError,
-  REFERER,
   apiRequest,
   isRouteAbsent,
   utf8Base64,
@@ -142,20 +141,6 @@ export const requestLogin = async ({ username, password }) => {
       data: { username: user, password },
     });
   }
-
-  // --- TEMP DIAGNOSTIC: remove once device sign-in is confirmed. ---
-  // Native requests do not appear in the DevTools Network tab, so this is the
-  // only way to see what the gateway actually answered on a phone. Logs the
-  // SHAPE of the request, never the credentials.
-  console.log("LOGIN PROBE", {
-    url: `${gateway}/auth`,
-    native: typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.(),
-    status: response.status,
-    body: response.raw?.slice(0, 300),
-    sentReferer: REFERER,
-    createTokenLength: createToken.length,
-  });
-  // --- end TEMP DIAGNOSTIC ---
 
   if (response.status === 401) {
     // Prefer the gateway's own wording. It distinguishes cases this app
