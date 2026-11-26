@@ -1,42 +1,68 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { Checkbox } from "../../../components/ui/Checkbox";
 import Icon from "../../../components/AppIcon";
-import { fetchUser } from "services/user.service";
-import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import OtpCodeForm from "../../../components/otp/OtpCodeForm";
+import {
+  clearPendingChallenge,
+  loadPendingChallenge,
+  persistSession,
+  requestLogin,
+  resendLoginOtp,
+  savePendingChallenge,
+  verifyLoginOtp,
+} from "services/auth.service";
 
-// Parse a JSON string defensively; returns null on empty/invalid bodies so the
-// caller can surface the raw status instead of throwing on `JSON.parse("")`.
-const safeParse = (value) => {
-  if (value == null) return null;
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-};
+/**
+ * LoginForm -- credentials, then (where the gateway asks for one) a 6-digit
+ * code.
+ *
+ * Dual-mode on purpose: nothing here decides the flow in advance. We ask the
+ * gateway and react to what comes back, because 2FA is served by one gateway
+ * while the other still answers the old `{ token, user, acl }` payload. An app
+ * that simply switched to the OTP flow would break sign-in the moment it
+ * shipped against the legacy gateway.
+ */
+
+const LOGIN_OTP_TTL_MS = 15 * 60 * 1000;
 
 const LoginForm = () => {
   const navigate = useNavigate();
+
+  const [step, setStep] = useState("credentials");
+  const [challenge, setChallenge] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     rememberMe: false,
   });
-
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+
+  /* Already signed in? */
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
-    const isAuthenticated =
-      localStorage.getItem("isAuthenticated");
+    const isAuthenticated = localStorage.getItem("isAuthenticated");
 
     if (token && isAuthenticated === "true") {
       navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
+
+  /**
+   * Restore a challenge left behind by an accidental reload of the OTP
+   * screen, so the code already sent is not thrown away and the user is not
+   * forced through a fresh login.
+   */
+  useEffect(() => {
+    const pending = loadPendingChallenge();
+    if (pending) {
+      setChallenge(pending);
+      setStep("otp");
+    }
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -68,204 +94,119 @@ const LoginForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  /** Shared by both modes: a session exists, go to the dashboard. */
+  const finishLogin = useCallback(
+    async (session) => {
+      await persistSession(session);
+      navigate("/dashboard");
+    },
+    [navigate],
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     setIsLoading(true);
     setErrors({});
 
     try {
-      // Trim the username — mobile keyboards often append a trailing space
-      // via autocomplete/autocorrect, which the server rejects.
-      const username = formData.username.trim();
-      const password = formData.password;
+      const result = await requestLogin({
+        username: formData.username,
+        password: formData.password,
+      });
 
-      // 🔐 Step 1: create login token (username + password)
-      const loginToken = btoa(`${username}:${password}`);
-
-      const url = "https://gateway.aajneetiadvertising.com/auth";
-      const headers = {
-        "Content-Type": "application/json",
-        "create-token": loginToken,
-        // The server authorizes requests by their referrer. A browser sends it
-        // automatically; inside the app the origin is `https://localhost`, so we
-        // set it explicitly.
-        Referer: "https://crm.aajneeti.com/",
-      };
-      const payload = { username, password };
-
-      // On a device we call native HTTP DIRECTLY instead of fetch(). The patched
-      // fetch() that CapacitorHttp installs runs headers through browser
-      // normalization, which silently drops the forbidden `Referer` header — so
-      // it never reached the server (hence HTTP 401). CapacitorHttp.request
-      // sends the headers untouched. On web we keep using fetch().
-      let status, rawBody, data;
-      if (Capacitor.isNativePlatform()) {
-        const resp = await CapacitorHttp.request({
-          url,
-          method: "POST",
-          headers,
-          data: payload,
-        });
-        status = resp.status;
-        rawBody =
-          typeof resp.data === "string"
-            ? resp.data
-            : JSON.stringify(resp.data ?? "");
-        data = safeParse(resp.data);
-      } else {
-        const res = await fetch(url, {
-          method: "POST",
-          headers,
-          referrer: "https://crm.aajneeti.com/",
-          body: JSON.stringify(payload),
-        });
-        status = res.status;
-        rawBody = await res.text();
-        data = safeParse(rawBody);
+      if (result.mode === "otp") {
+        setChallenge(result.challenge);
+        savePendingChallenge(result.challenge);
+        setStep("otp");
+        return;
       }
 
-      // --- TEMP DIAGNOSTICS: surface the real status + body on screen. ---
-      console.log("LOGIN STATUS:", status, "RAW:", rawBody);
-
-      if (status < 200 || status >= 300 || !data) {
-        throw new Error(
-          `HTTP ${status} — ${data?.message || rawBody?.slice(0, 300) || "empty response"}`,
-        );
-      }
-      //
-
-      /* STEP 2: get logged in user */
-      const user = data.user;
-      // 🔐 Step 2: create login object from response
-      const loginObj = {
-        id: user.id,
-        username: user.userName,
-        token: data.token,
-        secret: data.secret,
-        type: user.type,
-        acl: data.acl || null,
-        roles: Object.values(user.rolesNames || {}),
-        teamsIds:
-          user.teamsIds?.length
-            ? user.teamsIds
-            : user.teamIds?.length
-              ? user.teamIds
-              : user.defaultTeamId
-                ? [user.defaultTeamId]
-                : [],
-
-        teamId:
-          user.teamId ||
-          user.defaultTeamId ||
-          null,
-
-        // Role
-        role:
-          Object.values(user.rolesNames || {})?.[0] ||
-          "",
-        assignedUserId: user.id,
-      };
-
-      // 🔐 Step 3: stringify + base64 encode
-      const jsonString = JSON.stringify(loginObj);
-      const myToken = btoa(jsonString);
-
-      // ✅ Store everything
-      localStorage.setItem("auth_token", myToken); // MAIN TOKEN
-      localStorage.setItem("login_object", jsonString); // optional (debug/use)
-      localStorage.setItem("isAuthenticated", "true");
-      if (data.acl) {
-        localStorage.setItem("acl", JSON.stringify(data.acl));
-      }
-
-      // 🔐 Step 4: resolve the user's roles from their own User record.
-      //
-      // The /auth response does not always carry `rolesNames`, which left
-      // `roles` empty and every role-gated check (My Campaigns in the
-      // sidebar, for one) failing for people who do hold a role. Reading
-      // /User/{id} gives the authoritative list.
-      //
-      // Deliberately NOT using fetchUserById: that helper clears localStorage
-      // and redirects to /login on 401/403, which would wipe the session we
-      // just created and bounce a successful login straight back out.
-      //
-      // Only `login_object` is rewritten — `auth_token` is the credential the
-      // gateway was handed and is left exactly as issued.
-      try {
-        const userRes = await fetch(
-          `https://gateway.aajneetiadvertising.com/User/${user.id}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json", token: myToken },
-          },
-        );
-
-        if (userRes.ok) {
-          const detail = safeParse(await userRes.text());
-          // EspoCRM returns link-multiple fields as an { id: name } map, but
-          // accept a plain array too rather than silently finding nothing.
-          const rawRoles = detail?.rolesNames ?? detail?.roles;
-          const resolvedRoles = (
-            Array.isArray(rawRoles) ? rawRoles : Object.values(rawRoles || {})
-          )
-            .map((role) => (typeof role === "string" ? role : role?.name))
-            .filter(Boolean);
-
-          if (resolvedRoles.length) {
-            const withRoles = {
-              ...loginObj,
-              roles: resolvedRoles,
-              role: resolvedRoles[0],
-            };
-            localStorage.setItem("login_object", JSON.stringify(withRoles));
-            console.log("Resolved user roles:", resolvedRoles);
-          } else {
-            // The call succeeded but carried no role names — most likely the
-            // field is ACL-restricted for this user, or the role is attached
-            // to their team rather than to them. Name the role-bearing keys
-            // so the cause is visible instead of silently falling back.
-            console.warn(
-              "No roles on the User record. Role-bearing fields were:",
-              {
-                rolesNames: detail?.rolesNames,
-                rolesIds: detail?.rolesIds,
-                teamsNames: detail?.teamsNames,
-                type: detail?.type,
-              },
-            );
-          }
-        } else {
-          console.warn("User lookup failed with status", userRes.status);
-        }
-      } catch (roleError) {
-        // Never block a successful login on this — the app falls back to
-        // whatever roles the auth response provided.
-        console.error("Could not resolve user roles:", roleError);
-      }
-
-      // Fresh login → let the Dashboard summary alert re-appear (and re-chime)
-      // even if it was dismissed in a previous session that left flags behind.
-      try {
-        sessionStorage.removeItem("dashboardSummaryAlertDismissed");
-        sessionStorage.removeItem("dashboardSummaryAlertSoundPlayed");
-      } catch {
-        // sessionStorage unavailable — alert will just behave as if first-visit
-      }
-
-      navigate("/dashboard");
+      // Legacy gateway: already authenticated, no OTP screen.
+      await finishLogin({
+        token: result.token,
+        user: result.user,
+        acl: result.acl,
+        secret: result.secret,
+        gateway: result.gateway,
+      });
     } catch (err) {
-      console.error("Login error:", err);
-      setErrors({ general: err.message });
+      // A 401 is a definitive wrong password: the message is shown and the
+      // request is NOT retried -- a second attempt only burns a rate-limit
+      // slot.
+      setErrors({ general: err.message || "Could not sign you in." });
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* ---------------------------------------------------------------- *
+   * OTP step
+   * ---------------------------------------------------------------- */
+
+  const handleVerify = useCallback(
+    async (code) => {
+      // Verification returns ONLY a token -- no user, no ACL -- so the session
+      // is assembled from /App/user and /User/{id} inside persistSession.
+      const token = await verifyLoginOtp({
+        otp: code,
+        challengeToken: challenge?.challengeToken,
+        gateway: challenge?.gateway,
+      });
+
+      await finishLogin({ token, gateway: challenge?.gateway });
+    },
+    [challenge, finishLogin],
+  );
+
+  const handleResend = useCallback(async () => {
+    // The returned challengeToken REPLACES the old one, and the new issuedAt
+    // restarts both the 15-minute expiry and the 60-second cooldown.
+    const fresh = await resendLoginOtp({
+      challengeToken: challenge?.challengeToken,
+      gateway: challenge?.gateway,
+    });
+    setChallenge(fresh);
+    savePendingChallenge(fresh);
+  }, [challenge]);
+
+  const useDifferentAccount = useCallback(() => {
+    clearPendingChallenge();
+    setChallenge(null);
+    setStep("credentials");
+    setErrors({});
+    setFormData((prev) => ({ ...prev, password: "" }));
+  }, []);
+
+  /**
+   * Hardware back on the OTP screen means "use a different account" -- not a
+   * route pop, which would leave the half-finished sign-in behind.
+   */
+  useEffect(() => {
+    if (step !== "otp" || !Capacitor.isNativePlatform()) return;
+
+    let remove = null;
+    let cancelled = false;
+
+    import("@capacitor/app")
+      .then(({ App }) => App.addListener("backButton", useDifferentAccount))
+      .then((handle) => {
+        if (cancelled) handle.remove();
+        else remove = handle;
+      })
+      .catch(() => {
+        /* plugin unavailable -- the on-screen link still works */
+      });
+
+    return () => {
+      cancelled = true;
+      remove?.remove?.();
+    };
+  }, [step, useDifferentAccount]);
+
   // 48px-tall field with a leading icon. Built inline rather than through the
-  // shared Input so the icon can be centred against the control itself —
+  // shared Input so the icon can be centred against the control itself --
   // Input renders its own label and error inside the same wrapper, which
   // would throw an absolutely-positioned icon off-centre.
   const fieldClasses = (hasError) =>
@@ -277,6 +218,18 @@ const LoginForm = () => {
       ? "border-destructive focus:ring-destructive/40"
       : "border-border focus:border-primary/40 focus:ring-primary/25"
     }`;
+
+  if (step === "otp") {
+    return (
+      <OtpCodeForm
+        challenge={challenge}
+        ttlMs={LOGIN_OTP_TTL_MS}
+        onSubmit={handleVerify}
+        onResend={handleResend}
+        onBack={useDifferentAccount}
+      />
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>

@@ -2,12 +2,20 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import { runGuardedExport } from 'utils/guardedExport';
 
 const ExportControls = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportType, setExportType] = useState(null);
 
   const handleExport = async (type) => {
+    // Reports exports go through the same gate as every other export.
+    let verified = false;
+    await runGuardedExport(() => {
+      verified = true;
+    });
+    if (!verified) return;
+
     setIsExporting(true);
     setExportType(type);
     

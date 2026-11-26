@@ -22,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTasks, useTasksAll } from "hooks/useTasks";
 import { useTask } from "hooks/useTask";
 import { canCreate, canDelete, canEdit } from "utils/permission";
+import { runGuardedExport } from "utils/guardedExport";
 const TaskPage = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState(null);
@@ -254,22 +255,26 @@ const TaskPage = () => {
     setCurrentPage(1);
   };
 
-  const handleBulkAction = (action) => {
+  const handleBulkAction = async (action) => {
     if (!selectedDeals.length) {
       toast.error("Please select at least one task");
       return;
     }
     if (action === "export") {
+      // Selection check first: a doomed export must not ask for a code.
       if (!selectedDeals.length) {
         toast.error("Select at least one lead");
         return;
       }
 
-      const selectedRows = leads.filter((deal) =>
-        selectedDeals.includes(deal.id),
-      );
+      // Verify BEFORE collecting the records, not after.
+      await runGuardedExport(() => {
+        const selectedRows = leads.filter((deal) =>
+          selectedDeals.includes(deal.id),
+        );
 
-      exportLeadsToCSV(selectedRows, "selected_leads");
+        exportLeadsToCSV(selectedRows, "selected_leads");
+      });
       return;
     }
 
@@ -342,7 +347,9 @@ const TaskPage = () => {
                 className="hidden"
                   variant="outline"
                   onClick={() =>
-                    exportLeadsToCSV(leads, "all_leads")
+                    runGuardedExport(() =>
+                      exportLeadsToCSV(leads, "all_leads"),
+                    )
                   }
                 >
                   <Icon name="Download" size={16} className="mr-2" />

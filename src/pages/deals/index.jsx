@@ -39,6 +39,7 @@ import {
   getStoredUser,
 } from "utils/permission";
 import { useLocation } from "react-router-dom";
+import { runGuardedExport } from "utils/guardedExport";
 
 const DealsPage = () => {
   const queryClient = useQueryClient();
@@ -466,7 +467,7 @@ const DealsPage = () => {
     });
     setPage(1);
   };
-  const handleBulkAction = (action) => {
+  const handleBulkAction = async (action) => {
     if (action === "mass-update") {
       if (!selectedDeals.length) {
         toast.error("Select at least one lead");
@@ -490,16 +491,21 @@ const DealsPage = () => {
     }
 
     if (action === "export") {
+      // The selection check comes FIRST, so a doomed export never prompts for
+      // a verification code it cannot use.
       if (!selectedDeals.length) {
         toast.error("Select at least one lead");
         return;
       }
 
-      const selectedRows = leads.filter((deal) =>
-        selectedDeals.includes(deal.id),
-      );
+      // Verify BEFORE collecting the records, not after.
+      await runGuardedExport(() => {
+        const selectedRows = leads.filter((deal) =>
+          selectedDeals.includes(deal.id),
+        );
 
-      exportLeadsToCSV(selectedRows, "selected_leads");
+        exportLeadsToCSV(selectedRows, "selected_leads");
+      });
       return;
     }
 
@@ -652,7 +658,9 @@ const DealsPage = () => {
                   className="linearbg-1 text-white hover:text-white hidden"
                   variant="outline"
                   onClick={() =>
-                    exportLeadsToCSV(leads, "all_leads")
+                    runGuardedExport(() =>
+                      exportLeadsToCSV(leads, "all_leads"),
+                    )
                   }
                 >
                   <Icon name="Download" size={16} className="mr-2" />

@@ -3,6 +3,7 @@ import Routes from "./Routes";
 import { Toaster } from "react-hot-toast";
 import { NotificationProvider } from "./NotificationContext";
 import { ThemeProvider } from "./ThemeContext";
+import StepUpDialog from "./components/StepUpDialog";
 
 /**
  * The toaster renders OUTSIDE the page tree, so its own surface has to be
@@ -25,6 +26,10 @@ function App() {
         reverseOrder={false}
         toastOptions={toastOptions}
       />
+      {/* Mounted ONCE and deliberately OUTSIDE <Routes>: a step-up dialog
+          inside a route unmounts on navigation and leaves the export that
+          opened it awaiting a promise that can never settle. */}
+      <StepUpDialog />
       <NotificationProvider>
         <Routes />
       </NotificationProvider>

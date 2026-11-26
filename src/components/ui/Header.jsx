@@ -10,6 +10,7 @@ import NotificationDropdown from "components/NotificationDropdown";
 import { useNotification } from "NotificationContext";
 import { useNotificationCount } from "hooks/useNotificationCount";
 import { useQueryClient } from "@tanstack/react-query";
+import { clearStepUpState } from "services/stepUp.service";
 
 /**
  * Fixed top bar (spec 3.1). 64px tall, sits above the notch via
@@ -29,6 +30,9 @@ const Header = ({ onMenuToggle, isSidebarOpen = false }) => {
 
   const handleLogout = () => {
     queryClient.clear();
+    // Elevation is reset on logout as well as on login: the next session must
+    // earn its own step-up.
+    clearStepUpState();
     localStorage.clear();
     handleDropdownClose();
     navigate("/login", { replace: true });

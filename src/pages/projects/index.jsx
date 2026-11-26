@@ -22,6 +22,7 @@ import {
   updateProject,
 } from "services/projects.service";
 import { useQueryClient } from "@tanstack/react-query";
+import { runGuardedExport } from "utils/guardedExport";
 
 const ProjectsPage = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -281,22 +282,26 @@ const ProjectsPage = () => {
     setCurrentPage(1);
   };
 
-  const handleBulkAction = (action) => {
+  const handleBulkAction = async (action) => {
     if (!selectedDeals.length) {
       toast.error("Please select at least one task");
       return;
     }
     if (action === "export") {
+      // Selection check first: a doomed export must not ask for a code.
       if (!selectedDeals.length) {
         toast.error("Select at least one lead");
         return;
       }
 
-      const selectedRows = projects.filter((deal) =>
-        selectedDeals.includes(deal.id),
-      );
+      // Verify BEFORE collecting the records, not after.
+      await runGuardedExport(() => {
+        const selectedRows = projects.filter((deal) =>
+          selectedDeals.includes(deal.id),
+        );
 
-      exportLeadsToCSV(selectedRows, "selected_leads");
+        exportLeadsToCSV(selectedRows, "selected_leads");
+      });
       return;
     }
 

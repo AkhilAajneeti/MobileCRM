@@ -19,6 +19,7 @@ import { useAccounts } from "hooks/useAccounts";
 import { useMetaData } from "hooks/useMetaData";
 import { useQueryClient } from "@tanstack/react-query";
 import { canCreate, canDelete, canEdit } from "utils/permission";
+import { runGuardedExport } from "utils/guardedExport";
 
 const AccountsPage = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -204,7 +205,12 @@ const AccountsPage = () => {
     setIsDrawerOpen(true);
   };
   // handle exports (bulk and indivisual)
-  const handleExportAccount = (account) => {
+  //
+  // Gated here rather than at each caller: the bulk action and the toolbar
+  // button both arrive through this one function, and the step-up check must
+  // run before the rows are serialised.
+  const handleExportAccount = async (account) => {
+    await runGuardedExport(() => {
     try {
       const exportData = account.map((account) => ({
         Name: account?.name || "",
@@ -246,6 +252,7 @@ const AccountsPage = () => {
       console.error("Error exporting accounts:", error);
       alert("Failed to export accounts. Please try again.");
     }
+    });
   };
   const handleImportAccounts = async (rows) => {
     try {

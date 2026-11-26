@@ -181,3 +181,86 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .reminder-shake {
   animation: reminderShake 0.6s ease-in-out 2;
 }
+
+/* ------------------------------------------------------------------ *
+ * OTP code boxes (shared by login 2FA and export step-up)
+ *
+ * Border + focus-ring states live here rather than in Tailwind classes
+ * because they are exact brand values carried over from the shipped web CRM,
+ * and the two apps must match. #AC2334 is the brand; #E05A6B is its
+ * dark-mode border variant.
+ * ------------------------------------------------------------------ */
+
+.otp-box {
+  border: 1px solid #d5cfc8;
+}
+
+.otp-box--filled {
+  border-color: rgba(172, 35, 52, 0.6);
+}
+
+.otp-box:focus {
+  border-color: #ac2334;
+  box-shadow: 0 0 0 4px rgba(172, 35, 52, 0.1);
+}
+
+.otp-box--error {
+  border-color: #fca5a5;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+.dark .otp-box {
+  border-color: #64748b;
+}
+
+.dark .otp-box--filled {
+  border-color: rgba(224, 90, 107, 0.7);
+}
+
+.dark .otp-box:focus {
+  border-color: #e05a6b;
+  box-shadow: 0 0 0 4px rgba(224, 90, 107, 0.12);
+}
+
+/*
+ * "Where the code went" note.
+ *
+ * Light mode carries the shipped web CRM's exact values. The dark variant
+ * exists because those values are light-mode-only: on a near-black page a
+ * #FBF8F4 panel with slate text is unreadable. Written as classes, not inline
+ * styles, so this sheet can reach them at all.
+ */
+.otp-note {
+  border: 1px solid #e6dfd6;
+  background: #fbf8f4;
+}
+
+.otp-note__icon {
+  color: #ac2334;
+}
+
+.dark .otp-note {
+  border-color: rgba(224, 90, 107, 0.28);
+  background: rgba(224, 90, 107, 0.08);
+}
+
+.dark .otp-note__icon {
+  color: #e05a6b;
+}
+
+/* Resend / "send a new code" -- a link, so it uses the brand link variant. */
+.otp-resend {
+  color: #ac2334;
+}
+
+.otp-resend--off {
+  color: #94a3b8;
+}
+
+.dark .otp-resend {
+  color: #e8798a;
+}
+
+.dark .otp-resend--off {
+  color: #64748b;
+}
