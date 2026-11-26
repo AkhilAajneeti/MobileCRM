@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 export const fetchUser = async () => {
   const token = localStorage.getItem("auth_token");
   // Without an explicit maxSize the API returns only its default first page
@@ -5,7 +6,7 @@ export const fetchUser = async () => {
   // lead's team for permission checks, so a short page made leads assigned
   // to anyone further down look un-editable.
   const res = await fetch(
-    "https://gateway.aajneetiadvertising.com/User?maxSize=200&orderBy=name&order=asc",
+    API_BASE + "/User?maxSize=200&orderBy=name&order=asc",
     {
       method: "GET",
       headers: {
@@ -26,7 +27,7 @@ export const fetchUser = async () => {
 export const fetchUserById = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
-  const res = await fetch(`https://gateway.aajneetiadvertising.com/User/${id}`, {
+  const res = await fetch(`${API_BASE}/User/${id}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -49,7 +50,7 @@ export const updateUser = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
   console.log(id, payload);
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/User/${id}`,
+    `${API_BASE}/User/${id}`,
     {
       method: "PUT",
       headers: {
@@ -74,7 +75,7 @@ export const updateUser = async (id, payload) => {
 export const deleteUser = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/User/${id}`,
+    `${API_BASE}/User/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -91,7 +92,7 @@ export const attachment = async (payload) => {
   const token = localStorage.getItem("auth_token");
   console.log(payload);
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/User/Attachment`,
+    `${API_BASE}/User/Attachment`,
     {
       method: "POST",
       headers: {

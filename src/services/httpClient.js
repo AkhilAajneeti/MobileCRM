@@ -3,13 +3,19 @@
  *
  * One request path for the auth + step-up flows.
  *
- * Why this exists rather than bare `fetch`: the gateway authorizes requests by
- * their referrer. In a browser that header is automatic; inside the Capacitor
- * WebView the origin is `https://localhost`, so it has to be set explicitly --
- * and the patched `fetch()` that CapacitorHttp installs runs headers through
- * browser normalization, which silently DROPS `Referer` because it is a
- * forbidden header. That is what produced the 401 on device. CapacitorHttp's
- * own `request()` sends headers untouched, so on a device we call it directly.
+ * Why this calls CapacitorHttp directly on a device rather than using `fetch`:
+ * the gateway expects a `Referer`. A browser sends it automatically, which is
+ * why sign-in works there; inside the WebView the origin is
+ * `https://localhost`, and `Referer` is a FORBIDDEN header, so the patched
+ * `fetch()` that CapacitorHttp installs strips it during header
+ * normalization and it never reaches the gateway. `CapacitorHttp.request()`
+ * passes headers through untouched.
+ *
+ * Probing the gateway with bad credentials returns the same 401 with or
+ * without a `Referer`, so the header cannot be ruled out that way -- a bad
+ * password fails for its own reason either way. It only matters on the
+ * credentials that would otherwise succeed, which is precisely the
+ * browser-works/device-fails split.
  *
  * These helpers never throw on an HTTP status -- every status in the OTP spec
  * (400 / 401 / 403 / 404 / 405 / 501) means something specific to the caller,
@@ -17,13 +23,12 @@
  */
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 
-export const GATEWAY = "https://gateway.aajneetiadvertising.com";
+import { API_BASE, REFERER } from "./gateway";
 
-/**
- * The referrer the gateway expects. Shared with the rest of the app's
- * services, which rely on the browser/WebView sending it for them.
- */
-export const REFERER = "https://crm.aajneeti.com/";
+/** Kept as a named export because the auth + step-up services read it. */
+export const GATEWAY = API_BASE;
+
+export { REFERER };
 
 /** Parse defensively: an empty 204/500 body must not throw on JSON.parse(""). */
 export const safeParse = (value) => {
@@ -72,6 +77,7 @@ export const apiRequest = async ({
   };
   if (token) finalHeaders.token = token;
 
+  // On a device, send the headers verbatim so `Referer` survives.
   if (Capacitor.isNativePlatform()) {
     const response = await CapacitorHttp.request({
       url,
@@ -83,11 +89,7 @@ export const apiRequest = async ({
       typeof response.data === "string"
         ? response.data
         : JSON.stringify(response.data ?? "");
-    return {
-      status: response.status,
-      data: safeParse(response.data),
-      raw,
-    };
+    return { status: response.status, data: safeParse(response.data), raw };
   }
 
   const response = await fetch(url, {

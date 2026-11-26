@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 
 
 export const fetchAllMeeting = async ({ limit, page, filters }) => {
@@ -196,7 +197,7 @@ export const fetchAllMeeting = async ({ limit, page, filters }) => {
 
 
 
-  const baseUrl = `https://gateway.aajneetiadvertising.com/Meeting?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
+  const baseUrl = `${API_BASE}/Meeting?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
 
   const url = query ? `${baseUrl}&${query}` : baseUrl;
 
@@ -224,7 +225,7 @@ export const fetchAllMeeting = async ({ limit, page, filters }) => {
 export const fetchMeeting = async () => {
   const token = localStorage.getItem("auth_token");
 
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Meeting", {
+  const res = await fetch(API_BASE + "/Meeting", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -244,7 +245,7 @@ export const fetchMeeting = async () => {
 export const fetchMeetingById = async (id) => {
   const token = localStorage.getItem("auth_token");
 
-  const res = await fetch(`https://gateway.aajneetiadvertising.com/Meeting/${id}`, {
+  const res = await fetch(`${API_BASE}/Meeting/${id}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -265,7 +266,7 @@ export const fetchMeetingById = async (id) => {
 export const createMeeting = async (payload) => {
 
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Meeting", {
+  const res = await fetch(API_BASE + "/Meeting", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -284,7 +285,7 @@ export const updateMeeting = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Meeting/${id}`,
+    `${API_BASE}/Meeting/${id}`,
     {
       method: "PUT",
       headers: {
@@ -308,7 +309,7 @@ export const updateMeeting = async (id, payload) => {
 export const deleteMeeting = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Meeting/${id}`,
+    `${API_BASE}/Meeting/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -330,7 +331,7 @@ export const meetingStreamById = async (id) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Meeting/${id}/stream`,
+    `${API_BASE}/Meeting/${id}/stream`,
     {
       method: "GET",
       headers: {
@@ -357,7 +358,7 @@ export const meetingStreamById = async (id) => {
 export const deleteActivity = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Note/${id}`,
+    `${API_BASE}/Note/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -373,7 +374,7 @@ export const deleteActivity = async (id) => {
 export const createMeetingStream = async (payload) => {
 
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Note", {
+  const res = await fetch(API_BASE + "/Note", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -395,7 +396,7 @@ export const leadActivitesById = async (id) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Activities/Lead/${id}/activities`,
+    `${API_BASE}/Activities/Lead/${id}/activities`,
     {
       method: "GET",
       headers: {
@@ -424,7 +425,7 @@ export const fetchLeadMeeting = async (leadId) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Activities/Lead/${leadId}/activities/list/Meeting`,
+    `${API_BASE}/Activities/Lead/${leadId}/activities/list/Meeting`,
     {
       method: "GET",
       headers: {
@@ -445,7 +446,7 @@ export const createLeadMeeting = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Activities/Lead/${id}/activities/list/Meeting`,
+    `${API_BASE}/Activities/Lead/${id}/activities/list/Meeting`,
     {
       method: "POST",
       headers: {

@@ -12,6 +12,7 @@
 import {
   GATEWAY,
   GatewayError,
+  REFERER,
   apiRequest,
   isRouteAbsent,
   utf8Base64,
@@ -142,13 +143,36 @@ export const requestLogin = async ({ username, password }) => {
     });
   }
 
+  // --- TEMP DIAGNOSTIC: remove once device sign-in is confirmed. ---
+  // Native requests do not appear in the DevTools Network tab, so this is the
+  // only way to see what the gateway actually answered on a phone. Logs the
+  // SHAPE of the request, never the credentials.
+  console.log("LOGIN PROBE", {
+    url: `${gateway}/auth`,
+    native: typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.(),
+    status: response.status,
+    body: response.raw?.slice(0, 300),
+    sentReferer: REFERER,
+    createTokenLength: createToken.length,
+  });
+  // --- end TEMP DIAGNOSTIC ---
+
   if (response.status === 401) {
-    throw new GatewayError("Invalid username or password.", response);
+    // Prefer the gateway's own wording. It distinguishes cases this app
+    // cannot -- an unknown user on this gateway reads the same as a wrong
+    // password otherwise, and that cost real debugging time.
+    throw new GatewayError(
+      response.data?.error ||
+        response.data?.message ||
+        "Invalid username or password.",
+      response,
+    );
   }
 
   if (response.status < 200 || response.status >= 300) {
     throw new GatewayError(
-      response.data?.message ||
+      response.data?.error ||
+        response.data?.message ||
         `Could not sign you in (HTTP ${response.status}). Please try again.`,
       response,
     );
@@ -199,8 +223,38 @@ export const toDigits = (otp) => String(otp ?? "").replace(/\D/g, "");
  * into those boxes can succeed, so leaving them live only collects another
  * failure.
  */
+/**
+ * Work out WHICH verify failure this is, across two response shapes.
+ *
+ * The spec describes `400 { status: "invalid_otp" | "otp_expired" |
+ * "invalid_challenge" }`. The gateway this app actually talks to answers with
+ * `error` strings instead, and uses 401 for a wrong or expired code:
+ *
+ *   400 { error: "Invalid or corrupted challenge token" }
+ *   401 { error: "Invalid OTP code. Please try again." }
+ *   401 { error: "OTP has expired. Please log in again." }
+ *
+ * Reading only `status` would classify every one of those as "something else",
+ * and -- far worse -- a 401 would be taken for a dead session and log the user
+ * out for mistyping a digit.
+ */
+export const classifyVerifyFailure = (body) => {
+  if (body?.status) return body.status;
+
+  const text = String(body?.error || body?.message || "").toLowerCase();
+  if (!text) return null;
+  if (text.includes("expired")) return "otp_expired";
+  if (text.includes("challenge")) return "invalid_challenge";
+  if (text.includes("otp") || text.includes("code")) return "invalid_otp";
+  return null;
+};
+
+/** True when a 401 is a rejected CODE rather than a dead session. */
+export const isOtpRejection = (status, body) =>
+  status === 400 || (status === 401 && classifyVerifyFailure(body) !== null);
+
 export const mapVerifyFailure = (body) => {
-  switch (body?.status) {
+  switch (classifyVerifyFailure(body)) {
     case "invalid_otp":
       return {
         message: "That code is not right. Check it and try again.",
@@ -249,15 +303,21 @@ export const verifyLoginOtp = async ({ otp, challengeToken, gateway }) => {
     data: { otp: toDigits(otp), challengeToken },
   });
 
-  // 400 is a wrong or expired code: the screen stays, the user never logs out.
-  if (response.status === 400) {
+  // A wrong or expired code: the screen stays, the user never logs out. This
+  // gateway reports those as 401, so status alone cannot decide it.
+  if (isOtpRejection(response.status, response.data)) {
     const mapped = mapVerifyFailure(response.data);
-    throw new OtpRejectedError({ ...mapped, status: 400, data: response.data });
+    throw new OtpRejectedError({
+      ...mapped,
+      status: response.status,
+      data: response.data,
+    });
   }
 
   if (response.status < 200 || response.status >= 300 || !response.data?.token) {
     throw new GatewayError(
-      response.data?.message ||
+      response.data?.error ||
+        response.data?.message ||
         `Could not verify that code (HTTP ${response.status}).`,
       response,
     );
@@ -280,7 +340,8 @@ export const resendLoginOtp = async ({ challengeToken, gateway }) => {
 
   if (response.status < 200 || response.status >= 300) {
     throw new GatewayError(
-      response.data?.message ||
+      response.data?.error ||
+        response.data?.message ||
         `Could not send a new code (HTTP ${response.status}).`,
       response,
     );

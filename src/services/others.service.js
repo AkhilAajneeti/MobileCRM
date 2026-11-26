@@ -1,7 +1,8 @@
+import { API_BASE } from "services/gateway";
 // lead-->source
 export const fetchSources = async () => {
     const token = localStorage.getItem("auth_token")
-    const res = await fetch(`https://gateway.aajneetiadvertising.com/Admin/fieldManager/Lead/source`, {
+    const res = await fetch(`${API_BASE}/Admin/fieldManager/Lead/source`, {
         method: 'GET',
         headers: {
             "Content-type": "application/json",
@@ -23,7 +24,7 @@ export const fetchSources = async () => {
 //lead  -> status
 export const fetchStatus = async () => {
     const token = localStorage.getItem("auth_token")
-    const res = await fetch(`https://gateway.aajneetiadvertising.com/Admin/fieldManager/Lead/status`, {
+    const res = await fetch(`${API_BASE}/Admin/fieldManager/Lead/status`, {
         method: 'GET',
         headers: {
             "Content-type": "application/json",
@@ -45,7 +46,7 @@ export const fetchStatus = async () => {
 //Task -> Priority
 // export const fetchStatus = async () => {
 //     const token = localStorage.getItem("auth_token")
-//     const res = await fetch(`https://gateway.aajneetiadvertising.com/Admin/fieldManager/Lead/status`, {
+//     const res = await fetch(`${API_BASE}/Admin/fieldManager/Lead/status`, {
 //         method: 'GET',
 //         headers: {
 //             "Content-type": "application/json",
@@ -67,7 +68,7 @@ export const fetchStatus = async () => {
 //account -> industries
 export const fetchIndustries = async () => {
     const token = localStorage.getItem("auth_token")
-    const res = await fetch(`https://gateway.aajneetiadvertising.com/Admin/fieldManager/Account/industry`, {
+    const res = await fetch(`${API_BASE}/Admin/fieldManager/Account/industry`, {
         method: 'GET',
         headers: {
             "Content-type": "application/json",
@@ -90,7 +91,7 @@ export const fetchIndustries = async () => {
 //account -> types
 export const fetchAccountType = async () => {
     const token = localStorage.getItem("auth_token")
-    const res = await fetch(`https://gateway.aajneetiadvertising.com/Admin/fieldManager/Account/type`, {
+    const res = await fetch(`${API_BASE}/Admin/fieldManager/Account/type`, {
         method: 'GET',
         headers: {
             "Content-type": "application/json",

@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 /**
  * Lead-analytics data-access layer.
  *
@@ -10,7 +11,7 @@
  * fresh data in the background.
  */
 
-const ESPO_BASE = "https://gateway.aajneetiadvertising.com/Lead";
+const ESPO_BASE = API_BASE + "/Lead";
 
 // Business-only sales statuses — drives both the IN filter and the chart segments.
 export const BUSINESS_STATUSES = [

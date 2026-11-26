@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 /**
  * reminder.service.js
  *
@@ -9,7 +10,6 @@
  * Backend filtering (ESPO `today` whereGroup) keeps it light; the manager
  * re-filters client-side against the local clock for timezone safety.
  */
-const API_BASE = "https://gateway.aajneetiadvertising.com";
 
 export const fetchTodayFollowups = async ({ signal } = {}) => {
   const token = localStorage.getItem("auth_token");

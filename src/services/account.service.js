@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 const toLocalISOString = (date) => {
   const tzOffset = date.getTimezoneOffset() * 60000;
   return new Date(date - tzOffset).toISOString().slice(0, -1);
@@ -139,7 +140,7 @@ export const fetchAccounts = async ({ limit, page, filters = {} }) => {
     })
     .join("&");
 
-  const url = `https://gateway.aajneetiadvertising.com/Account?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc${query ? `&${query}` : ""}`;
+  const url = `${API_BASE}/Account?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc${query ? `&${query}` : ""}`;
 
   console.log("🔥 API URL:", url); // DEBUG
 
@@ -162,7 +163,7 @@ export const fetchAccounts = async ({ limit, page, filters = {} }) => {
 export const createAccount = async (payload) => {
   const token = localStorage.getItem("auth_token");
   try {
-    const res = await fetch("https://gateway.aajneetiadvertising.com/Account", {
+    const res = await fetch(API_BASE + "/Account", {
       method: "POST",
       headers: { "Content-Type": "application/json", token: token },
 
@@ -185,7 +186,7 @@ export const createAccount = async (payload) => {
 export const updateAccount = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Account/${id}`,
+    `${API_BASE}/Account/${id}`,
     {
       method: "PUT",
       headers: {
@@ -211,7 +212,7 @@ export const updateAccount = async (id, payload) => {
 export const deleteAccount = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Account/${id}`,
+    `${API_BASE}/Account/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -228,7 +229,7 @@ export const fetchAccStreamById = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Account/${id}/stream`,
+    `${API_BASE}/Account/${id}/stream`,
     {
       method: "GET",
       headers: {
@@ -255,7 +256,7 @@ export const fetchAccStreamById = async (id) => {
 export const deleteAccStream = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Note/${id}`,
+    `${API_BASE}/Note/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -271,7 +272,7 @@ export const deleteAccStream = async (id) => {
 export const createAccStream = async (payload) => {
   console.log(payload);
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Note", {
+  const res = await fetch(API_BASE + "/Note", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -293,7 +294,7 @@ export const accActivitesById = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Activities/Account/${id}/activities`,
+    `${API_BASE}/Activities/Account/${id}/activities`,
     {
       method: "GET",
       headers: {
@@ -322,7 +323,7 @@ export const fetchTaskByAccount = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Task?accountId=${id}`,
+    `${API_BASE}/Task?accountId=${id}`,
     {
       method: "GET",
       headers: {
@@ -350,7 +351,7 @@ export const fetchContactByAccount = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Contact?accountId=${id}`,
+    `${API_BASE}/Contact?accountId=${id}`,
     {
       method: "GET",
       headers: {
@@ -378,7 +379,7 @@ export const unlinkContactFromAccount = async (id) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Contact/${id}`,
+    `${API_BASE}/Contact/${id}`,
     {
       method: "PUT",
       headers: {

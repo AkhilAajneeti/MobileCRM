@@ -1,7 +1,8 @@
+import { API_BASE } from "services/gateway";
 export const fetchRoles=async()=>{
     const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
-  const res = await fetch("https://gateway.aajneetiadvertising.com/role", {
+  const res = await fetch(API_BASE + "/role", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -23,7 +24,7 @@ export const fetchRoles=async()=>{
 export const createUser = async (payload) => {
   console.log(payload);
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/User", {
+  const res = await fetch(API_BASE + "/User", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 

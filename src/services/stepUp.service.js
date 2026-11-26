@@ -16,6 +16,7 @@ import { GatewayError, apiRequest, isRouteAbsent } from "./httpClient";
 import {
   OtpRejectedError,
   getPinnedGateway,
+  isOtpRejection,
   mapVerifyFailure,
   toDigits,
 } from "./auth.service";
@@ -217,7 +218,8 @@ export const sendStepUpCode = async () => {
 
   if (response.status < 200 || response.status >= 300) {
     throw new GatewayError(
-      response.data?.message ||
+      response.data?.error ||
+        response.data?.message ||
         `Could not send a verification code (HTTP ${response.status}).`,
       response,
     );
@@ -250,14 +252,20 @@ export const verifyStepUpCode = async ({ otp, challengeToken }) => {
     data: { otp: toDigits(otp), challengeToken },
   });
 
-  // A wrong or expired code. The dialog stays open; the user is NOT logged out.
-  if (response.status === 400) {
+  // A wrong or expired code. The dialog stays open; the user is NOT logged
+  // out -- checked BEFORE the 401 branch below, because this gateway reports a
+  // mistyped digit as 401 and logging someone out for that is the exact
+  // failure the spec calls out.
+  if (isOtpRejection(response.status, response.data)) {
     const mapped = mapVerifyFailure(response.data);
-    throw new OtpRejectedError({ ...mapped, status: 400, data: response.data });
+    throw new OtpRejectedError({
+      ...mapped,
+      status: response.status,
+      data: response.data,
+    });
   }
 
-  // 401 is the one status here that DOES end the session: the token we were
-  // about to elevate is dead, so there is nothing left to verify against.
+  // A 401 that is NOT about the code means the session itself is dead.
   if (response.status === 401) {
     clearStepUpState();
     localStorage.clear();
@@ -267,7 +275,8 @@ export const verifyStepUpCode = async ({ otp, challengeToken }) => {
 
   if (response.status < 200 || response.status >= 300 || !response.data?.token) {
     throw new GatewayError(
-      response.data?.message ||
+      response.data?.error ||
+        response.data?.message ||
         `Could not verify that code (HTTP ${response.status}).`,
       response,
     );

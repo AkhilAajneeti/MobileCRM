@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 /**
  * Site visits are not a separate entity — they are Leads carrying one of the
  * two site-visit statuses. This module is a thin read/write layer over the
@@ -7,7 +8,7 @@
  * computed on the client, so tab counts always describe the whole set rather
  * than a visible page. That is why there is no pagination on this screen.
  */
-const BASE = "https://gateway.aajneetiadvertising.com";
+const BASE = API_BASE;
 
 export const SITE_VISIT_STATUSES = ["Site Visit Scheduled", "Site Visit Done"];
 

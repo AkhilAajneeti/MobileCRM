@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 /**
  * Win Rate analytics data layer.
  *
@@ -10,7 +11,7 @@
  *   - 10-min TTL on cached entries; React Query handles 5-min background refresh.
  */
 
-const ESPO_BASE = "https://gateway.aajneetiadvertising.com/Lead";
+const ESPO_BASE = API_BASE + "/Lead";
 
 // v2: the cached row shape gained cStatusObj / cProject / modifiedAt for the
 // Team Performance report. The key MUST move with the shape -- a v1 entry

@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 export const fetchActivity = async ({
   limit,
   page = 1,
@@ -127,7 +128,7 @@ export const fetchActivity = async ({
     })
     .join("&");
 
-  const baseUrl = `https://gateway.aajneetiadvertising.com/Note?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
+  const baseUrl = `${API_BASE}/Note?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
 
   const url = query ? `${baseUrl}&${query}` : baseUrl;
 
@@ -158,7 +159,7 @@ export const fetchActivity = async ({
 export const deleteActivity = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Note/${id}`,
+    `${API_BASE}/Note/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -173,7 +174,7 @@ export const deleteActivity = async (id) => {
 export const createActivity = async (payload) => {
   console.log(payload);
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Note", {
+  const res = await fetch(API_BASE + "/Note", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 

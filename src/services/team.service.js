@@ -1,7 +1,8 @@
+import { API_BASE } from "services/gateway";
 export const fetchTeam = async () => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Team", {
+  const res = await fetch(API_BASE + "/Team", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -22,7 +23,7 @@ export const fetchTeam = async () => {
 export const fetchTeamById = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
-  const res = await fetch(`https://gateway.aajneetiadvertising.com/team/${id}`, {
+  const res = await fetch(`${API_BASE}/team/${id}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -41,7 +42,7 @@ export const fetchTeamById = async (id) => {
 }
 export const fetchTeamUser = async (id) => {
   const token = localStorage.getItem("auth_token");
-  const res = await fetch(`https://gateway.aajneetiadvertising.com/team/${id}/users`, {
+  const res = await fetch(`${API_BASE}/team/${id}/users`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -61,7 +62,7 @@ export const fetchTeamUser = async (id) => {
 
 export const createTeam = async (payload) => {
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/team", {
+  const res = await fetch(API_BASE + "/team", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -80,7 +81,7 @@ export const updateTeam = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
   
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/team/${id}`,
+    `${API_BASE}/team/${id}`,
     {
       method: "PUT",
       headers: {
@@ -104,7 +105,7 @@ export const updateTeam = async (id, payload) => {
 export const deleteTeam = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/team/${id}`,
+    `${API_BASE}/team/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },

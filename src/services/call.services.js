@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 export const fetchAllCall = async ({ limit, page, filters }) => {
   const token = localStorage.getItem("auth_token");
   const offset = (page - 1) * limit;
@@ -186,7 +187,7 @@ export const fetchAllCall = async ({ limit, page, filters }) => {
 
  
 
-  const baseUrl = `https://gateway.aajneetiadvertising.com/Call?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
+  const baseUrl = `${API_BASE}/Call?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
 
   const url = query ? `${baseUrl}&${query}` : baseUrl;
 
@@ -214,7 +215,7 @@ export const fetchAllCall = async ({ limit, page, filters }) => {
 export const fetchCall = async () => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Call", {
+  const res = await fetch(API_BASE + "/Call", {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -234,7 +235,7 @@ export const fetchCall = async () => {
 export const fetchCallById = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
-  const res = await fetch(`https://gateway.aajneetiadvertising.com/Call/${id}`, {
+  const res = await fetch(`${API_BASE}/Call/${id}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -255,7 +256,7 @@ export const fetchCallById = async (id) => {
 export const createCall = async (payload) => {
   console.log(payload);
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Call", {
+  const res = await fetch(API_BASE + "/Call", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -274,7 +275,7 @@ export const updateCall = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
   console.log(id, payload);
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Call/${id}`,
+    `${API_BASE}/Call/${id}`,
     {
       method: "PUT",
       headers: {
@@ -298,7 +299,7 @@ export const updateCall = async (id, payload) => {
 export const deleteCall = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Call/${id}`,
+    `${API_BASE}/Call/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -320,7 +321,7 @@ export const CallStreamById = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Call/${id}/stream`,
+    `${API_BASE}/Call/${id}/stream`,
     {
       method: "GET",
       headers: {
@@ -347,7 +348,7 @@ export const CallStreamById = async (id) => {
 export const deleteActivity = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Note/${id}`,
+    `${API_BASE}/Note/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -363,7 +364,7 @@ export const deleteActivity = async (id) => {
 export const createCallStream = async (payload) => {
   console.log(payload);
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Note", {
+  const res = await fetch(API_BASE + "/Note", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -385,7 +386,7 @@ export const leadActivitesById = async (id) => {
   const token = localStorage.getItem("auth_token");
   console.log("AUTH TOKEN:", token); // 🔍 debug
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Activities/Lead/${id}/activities`,
+    `${API_BASE}/Activities/Lead/${id}/activities`,
     {
       method: "GET",
       headers: {

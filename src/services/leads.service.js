@@ -1,3 +1,4 @@
+import { API_BASE } from "services/gateway";
 // cache services?
 const getCacheKey = () => {
   const userId = localStorage.getItem("userId") || "guest";
@@ -103,7 +104,7 @@ export const fetchLeadsCount = async (filters = []) => {
     })
     .join("&");
 
-  const url = `https://gateway.aajneetiadvertising.com/Lead?${query}&maxSize=1`;
+  const url = `${API_BASE}/Lead?${query}&maxSize=1`;
 
   const res = await fetch(url, {
     method: "GET",
@@ -146,7 +147,7 @@ export const fetchLeads = async ({ limit = 100, page = 1 } = {}) => {
   const offset = (page - 1) * limit; // ✅ FIX
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Lead?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`,
+    `${API_BASE}/Lead?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`,
     {
       method: "GET",
       headers: {
@@ -344,7 +345,7 @@ export const fetchNewLeads = async ({ limit, page, filters = {} }) => {
     })
     .join("&");
 
-  const baseUrl = `https://gateway.aajneetiadvertising.com/Lead?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
+  const baseUrl = `${API_BASE}/Lead?maxSize=${limit}&offset=${offset}&orderBy=createdAt&order=desc`;
 
   const url = query ? `${baseUrl}&${query}` : baseUrl;
 
@@ -366,7 +367,7 @@ export const fetchNewLeads = async ({ limit, page, filters = {} }) => {
 export const fetchLeadsById = async (id) => {
   const token = localStorage.getItem("auth_token");
 
-  const res = await fetch(`https://gateway.aajneetiadvertising.com/Lead/${id}`, {
+  const res = await fetch(`${API_BASE}/Lead/${id}`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -387,7 +388,7 @@ export const fetchLeadsById = async (id) => {
 export const createLead = async (payload) => {
 
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Lead", {
+  const res = await fetch(API_BASE + "/Lead", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -409,7 +410,7 @@ export const updateLead = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Lead/${id}`,
+    `${API_BASE}/Lead/${id}`,
     {
       method: "PUT",
       headers: {
@@ -436,7 +437,7 @@ export const updateLead = async (id, payload) => {
 export const deleteLead = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Lead/${id}`,
+    `${API_BASE}/Lead/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -458,7 +459,7 @@ export const leadStreamById = async (id) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Lead/${id}/stream`,
+    `${API_BASE}/Lead/${id}/stream`,
     {
       method: "GET",
       headers: {
@@ -484,7 +485,7 @@ export const updateStream = async (id, payload) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Lead/${id}/stream`,
+    `${API_BASE}/Lead/${id}/stream`,
     {
       method: "POST",
       headers: {
@@ -511,7 +512,7 @@ export const updateStream = async (id, payload) => {
 export const deleteActivity = async (id) => {
   const token = localStorage.getItem("auth_token");
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Note/${id}`,
+    `${API_BASE}/Note/${id}`,
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json", token: token },
@@ -527,7 +528,7 @@ export const deleteActivity = async (id) => {
 export const createLeadActivity = async (payload) => {
 
   const token = localStorage.getItem("auth_token");
-  const res = await fetch("https://gateway.aajneetiadvertising.com/Note", {
+  const res = await fetch(API_BASE + "/Note", {
     method: "POST",
     headers: { "Content-Type": "application/json", token: token },
 
@@ -550,7 +551,7 @@ export const leadActivitesById = async (id) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Activities/Lead/${id}/activities`,
+    `${API_BASE}/Activities/Lead/${id}/activities`,
     {
       method: "GET",
       headers: {
@@ -580,7 +581,7 @@ export const fetchLeadTask = async (id) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Lead/${id}/tasks`,
+    `${API_BASE}/Lead/${id}/tasks`,
     {
       method: "GET",
       headers: {
@@ -607,7 +608,7 @@ export const createLeadTask = async (id) => {
   const token = localStorage.getItem("auth_token");
 
   const res = await fetch(
-    `https://gateway.aajneetiadvertising.com/Lead/${id}/tasks`,
+    `${API_BASE}/Lead/${id}/tasks`,
     {
       method: "GET",
       headers: {
