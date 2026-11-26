@@ -345,7 +345,7 @@ export const fetchLeadsForAnalytics = async ({
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
         localStorage.clear();
-        window.location.href = "/login";
+        window.location.hash = "#/login";
       }
       throw new Error(`Analytics fetch failed: ${res.status}`);
     }
@@ -432,7 +432,7 @@ export const fetchProjectDataset = async ({ filters = {} }) => {
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
         localStorage.clear();
-        window.location.href = "/login";
+        window.location.hash = "#/login";
       }
       throw new Error(`Project dataset fetch failed: ${res.status}`);
     }

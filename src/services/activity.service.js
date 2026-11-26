@@ -146,7 +146,7 @@ export const fetchActivity = async ({
 
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
 
     throw new Error("Failed to fetch activities");

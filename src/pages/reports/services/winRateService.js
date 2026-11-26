@@ -303,7 +303,7 @@ export const fetchWinRateDataset = async ({ filters = {}, year }) => {
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           localStorage.clear();
-          window.location.href = "/login";
+          window.location.hash = "#/login";
         }
         throw new Error(`Win rate fetch failed: ${res.status}`);
       }

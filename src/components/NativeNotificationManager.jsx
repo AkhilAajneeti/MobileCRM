@@ -70,8 +70,10 @@ const NativeNotificationManager = () => {
   const overdueRef = useRef(overdue);
   overdueRef.current = overdue;
 
-  // Ask permission + wire tap routing once.
+  // Ask permission + wire tap routing once -- but never before sign-in: the
+  // Android 13+ permission dialog would open over the login form.
   useEffect(() => {
+    if (!token || onLoginPage) return;
     ensureNotificationPermission();
     const unsub = addNotificationTapListener((extra) => {
       if (extra?.leadId) navigate("/leads", { state: { leadId: extra.leadId } });
@@ -79,7 +81,7 @@ const NativeNotificationManager = () => {
       else navigate("/dashboard");
     });
     return unsub;
-  }, [navigate]);
+  }, [navigate, token, onLoginPage]);
 
   // Poll the notification feed for new lead events.
   useEffect(() => {

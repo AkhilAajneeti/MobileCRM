@@ -119,7 +119,7 @@ export const fetchLeadsCount = async (filters = []) => {
 
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
 
     throw new Error("Failed to fetch leads count");
@@ -160,7 +160,7 @@ export const fetchLeads = async ({ limit = 100, page = 1 } = {}) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch leads");
   }
@@ -377,7 +377,7 @@ export const fetchLeadsById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch accounts by id");
   }
@@ -473,7 +473,7 @@ export const leadStreamById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch User's stream");
   }
@@ -500,7 +500,7 @@ export const updateStream = async (id, payload) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch User's stream");
   }
@@ -566,7 +566,7 @@ export const leadActivitesById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch User's Activties");
   }
@@ -596,7 +596,7 @@ export const fetchLeadTask = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch task for this lead");
   }
@@ -623,7 +623,7 @@ export const createLeadTask = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch task for this lead");
   }

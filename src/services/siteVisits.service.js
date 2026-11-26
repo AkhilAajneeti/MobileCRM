@@ -20,7 +20,7 @@ const authHeaders = () => ({
 const handleAuthFailure = (res) => {
   if (res.status === 401 || res.status === 403) {
     localStorage.clear();
-    window.location.href = "/login";
+    window.location.hash = "#/login";
   }
 };
 

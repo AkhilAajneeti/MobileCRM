@@ -244,7 +244,7 @@ export const fetchAccStreamById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch User's stream");
   }
@@ -309,7 +309,7 @@ export const accActivitesById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch Accounts Activties");
   }
@@ -338,7 +338,7 @@ export const fetchTaskByAccount = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to Task related to this account");
   }
@@ -366,7 +366,7 @@ export const fetchContactByAccount = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to Contact related to this account");
   }

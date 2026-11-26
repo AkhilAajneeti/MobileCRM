@@ -21,7 +21,7 @@ export const fetchNotifications = async ({ maxSize = 100, offset = 0 } = {}) => 
 
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
 
     throw new Error("Failed to fetch notifications ");
@@ -74,7 +74,7 @@ export const markAllNotificationsRead = async () => {
   if (!res.ok) {
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to mark notifications as read");
   }

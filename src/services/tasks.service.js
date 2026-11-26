@@ -185,7 +185,7 @@ export const fetchTasks = async () => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch tasks");
   }
@@ -205,7 +205,7 @@ export const fetchTasksById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch task by id");
   }
@@ -296,7 +296,7 @@ export const taskStreamById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch User's stream");
   }
@@ -360,7 +360,7 @@ export const TaskActivitesById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch User's Activties");
   }

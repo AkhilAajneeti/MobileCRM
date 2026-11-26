@@ -162,7 +162,7 @@ export const fetchProjects = async ({
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch projects");
   }
@@ -186,7 +186,7 @@ export const fetchProjectsById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch projects by id");
   }

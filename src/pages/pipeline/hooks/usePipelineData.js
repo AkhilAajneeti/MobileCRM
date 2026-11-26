@@ -26,6 +26,12 @@ export const usePipelineData = ({ page = 1, limit = PIPELINE_PAGE_SIZE } = {}) =
   const query = useQuery({
     queryKey: [PIPELINE_QUERY_KEY, page, limit],
     queryFn: () => fetchPipelineLeads({ page, limit }),
+    // Never fetch without a session. Global managers (NativeNotificationManager
+    // via useUrgentLeads) mount ABOVE the routes, so this hook also runs on the
+    // login screen; unauthenticated it 401s, and the service 401 handler
+    // redirects to /login -- which under HashRouter reboots the whole app and
+    // loops forever, making the login form impossible to type into.
+    enabled: !!localStorage.getItem("auth_token"),
     placeholderData: keepPreviousData,
     staleTime: PIPELINE_STALE_TIME,
     gcTime: PIPELINE_GC_TIME,

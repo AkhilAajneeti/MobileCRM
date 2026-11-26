@@ -202,7 +202,7 @@ export const fetchAllCall = async ({ limit, page, filters }) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch calls");
   }
@@ -225,7 +225,7 @@ export const fetchCall = async () => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch call");
   }
@@ -245,7 +245,7 @@ export const fetchCallById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch Call by id");
   }
@@ -336,7 +336,7 @@ export const CallStreamById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch call stream");
   }
@@ -401,7 +401,7 @@ export const leadActivitesById = async (id) => {
     console.log("STATUS:", res.status);
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
     throw new Error("Failed to fetch Call's Activties");
   }

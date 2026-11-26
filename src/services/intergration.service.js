@@ -17,7 +17,7 @@ export const fetchIntegrationAcc = async () => {
 
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
 
     throw new Error("Failed to fetch integration accounts");
@@ -45,7 +45,7 @@ export const fetchIntegrationAccById = async (id) => {
 
     if (res.status === 401 || res.status === 403) {
       localStorage.clear();
-      window.location.href = "/login";
+      window.location.hash = "#/login";
     }
 
     throw new Error("Failed to fetch integration accounts");
