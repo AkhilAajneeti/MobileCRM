@@ -6,6 +6,11 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<!-- The app uses only standard HTTPS, which is exempt encryption. Declaring
+	     it here stops App Store Connect asking the export-compliance question on
+	     every single upload. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleDisplayName</key>
         <string>AajneetiCRM</string>
 	<key>CFBundleExecutable</key>
